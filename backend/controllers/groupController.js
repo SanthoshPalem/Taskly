@@ -1,4 +1,7 @@
-const Group = require("../models/Group");
+
+const Group = require('../models/Group');
+const User = require('../models/User'); // ✅ This line is important
+
 
 // CREATE group
 // CREATE new group
@@ -6,9 +9,16 @@ exports.createGroup = async (req, res) => {
   const { name } = req.body;
 
   try {
+    console.log('Creating group:', name);
+    console.log('Current user ID:', req.user._id);
+    console.log('Current user:', req.user.name, req.user.email);
+    
     // Check if a group with the same name already exists for the current user
     const existingGroup = await Group.findOne({ name, createdBy: req.user._id });
+    console.log('Existing group found:', existingGroup);
+    
     if (existingGroup) {
+      console.log('Duplicate group detected for user:', req.user._id);
       return res.status(400).json({ message: "Group with the same name already exists." });
     }
 
@@ -32,6 +42,17 @@ exports.getGroups = async (req, res) => {
   try {
     const groups = await Group.find({ createdBy: req.user._id }).populate("members.userId", "name email");
     res.json(groups);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET group by ID
+exports.getGroupById = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.groupId).populate('members.userId', 'name email');
+    if (!group) return res.status(404).json({ message: 'Group not found' });
+    res.json(group);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -62,10 +83,36 @@ exports.deleteGroup = async (req, res) => {
   }
 };
 
+exports.getMyGroups = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Groups created by the user
+    const createdGroups = await Group.find({ createdBy: userId })
+      .populate('createdBy', 'name email')
+      .populate('members.userId', 'name email');
+
+    // Groups where the user is a member but not the creator
+    const memberGroups = await Group.find({
+      members: { $elemMatch: { userId: userId } },
+      createdBy: { $ne: userId }
+    })
+      .populate('createdBy', 'name email')
+      .populate('members.userId', 'name email');
+
+    res.json({
+      createdGroups,
+      memberGroups,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ADD user to group
 exports.addUserToGroup = async (req, res) => {
   const { groupId } = req.params;
-  const { userId, role } = req.body;
+  const { email, role } = req.body;
 
   try {
     const group = await Group.findById(groupId);
@@ -78,16 +125,25 @@ exports.addUserToGroup = async (req, res) => {
       return res.status(403).json({ message: "Only admins can perform this action." });
     }
 
-    // Check if user is already in the group
-    const existing = group.members.find(m => m.userId.toString() === userId);
-    if (existing) {
+    const userToAdd = await User.findOne({ email });
+    if (!userToAdd) return res.status(404).json({ message: "User not found." });
+    const userId = userToAdd._id;
+
+    // Check if user is already in the group (improved check)
+    const existingMember = group.members.find(m => m.userId.toString() === userId.toString());
+    if (existingMember) {
       return res.status(400).json({ message: "User already in group." });
     }
 
-    group.members.push({ userId, role });
+    group.members.push({ userId, role: role || 'member' });
     await group.save();
 
-    res.json(group);
+    // Return populated group
+    const populatedGroup = await Group.findById(groupId)
+      .populate('createdBy', 'name email')
+      .populate('members.userId', 'name email');
+
+    res.json(populatedGroup);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
