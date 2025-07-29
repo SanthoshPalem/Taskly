@@ -7,9 +7,13 @@ const instance = axios.create({
 // Add a request interceptor to add the token to all requests
 instance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Get user object from localStorage and extract token
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user && user.token) {
+        config.headers.Authorization = `Bearer ${user.token}`;
+      }
     }
     return config;
   },

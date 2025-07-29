@@ -42,53 +42,55 @@ export default function Sidenav() {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            backgroundColor: '#ffffffff',
+            backgroundColor: '#f9f9f9', // similar to top nav background
             color: '#000',
+            boxShadow: '2px 0 5px rgba(0, 0, 0, 0.1)', // subtle shadow
           },
         }}
         variant="permanent"
         anchor="left"
       >
+
         {/* <Toolbar /> */}
         <Box sx={{ textAlign: 'center', py: 2 }}>
           <Typography variant="h6" noWrap>
             TaskManager
           </Typography>
         </Box>
-       
+
         <List>
           <List>
             <ListItem disablePadding>
               <ListItemButton onClick={() => navigate('/')}>
                 <ListItemIcon>
-                 <DashboardIcon/>
+                  <DashboardIcon />
                 </ListItemIcon>
                 <ListItemText primary="Dashboard" />
               </ListItemButton>
             </ListItem>
 
             <ListItem disablePadding>
-              <ListItemButton onClick={() => navigate('/groups')}>
+              <ListItemButton onClick={() => navigate('/mygroups')}>
                 <ListItemIcon>
-                  <GroupsIcon/>
+                  <GroupsIcon />
                 </ListItemIcon>
-                <ListItemText primary="Groups" />
+                <ListItemText primary="My Groups" />
               </ListItemButton>
             </ListItem>
 
             <ListItem disablePadding>
-              <ListItemButton onClick={() => navigate('/Mygroups')}>
+              <ListItemButton onClick={() => navigate('/mytasks')}>
                 <ListItemIcon>
-                 <Diversity2RoundedIcon/>
+                  <Diversity2RoundedIcon />
                 </ListItemIcon>
-                <ListItemText primary="My Groups" />
+                <ListItemText primary="My Tasks" />
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
 
               <ListItemButton onClick={() => navigate('/users')}>
                 <ListItemIcon>
-                 <PersonSearchOutlinedIcon/>
+                  <PersonSearchOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText primary="Users" />
               </ListItemButton>
@@ -97,7 +99,7 @@ export default function Sidenav() {
           </List>
 
         </List>
-     
+
 
       </Drawer>
 
@@ -109,7 +111,7 @@ export default function Sidenav() {
           bgcolor: 'background.default',
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          // ml: { sm: `${drawerWidth}px` },
           mt: '64px'
         }}
       >

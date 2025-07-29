@@ -23,20 +23,29 @@ const Login = () => {
   const [loading, setLoading] = useState(false); // since `loading` is not in context
 
   const handleLogin = async () => {
-    try {
-      setErrorMsg('');
-      setLoading(true);
-      const { user, token } = await loginUser(email, password);
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      login(user);
-      setLoading(false);
-      navigate('/'); // Redirect to dashboard
-    } catch (err) {
-      setLoading(false);
-      setErrorMsg(err.response?.data?.message || 'Login failed');
-    }
-  };
+  try {
+    setErrorMsg('');
+    setLoading(true);
+
+    const { user, token } = await loginUser(email, password);
+
+    // 🔥 Merge token into user object
+    const userWithToken = { ...user, token };
+
+    // ✅ Save single object to localStorage
+    localStorage.setItem('user', JSON.stringify(userWithToken));
+
+    // ✅ Set it in context
+    login(userWithToken);
+
+    setLoading(false);
+    navigate('/'); // Redirect to dashboard
+  } catch (err) {
+    setLoading(false);
+    setErrorMsg(err.response?.data?.message || 'Login failed');
+  }
+};
+
 
   return (
     <Container maxWidth="sm">

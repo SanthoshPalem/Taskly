@@ -34,7 +34,21 @@ function TopNav() {
   };
 
   return (
-    <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2, p: 1 }}>
+    <Box
+      sx={{
+        width: "100%",
+        backgroundColor: "#f9f9f9",
+        color: "#000000",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        p: 2,
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        position: "sticky",
+        top: 0,
+        zIndex: 1000
+      }}
+    >
       {user ? (
         <>
           <Typography
@@ -42,15 +56,16 @@ function TopNav() {
             sx={{
               fontWeight: 500,
               color: "text.primary",
-              display: { xs: "none", sm: "block" }
+              display: { xs: "none", sm: "block" },
+              mr: 2
             }}
           >
             {user.name || "User"}
           </Typography>
           <Tooltip title="Open settings">
-            <IconButton 
-              onClick={handleOpenUserMenu} 
-              sx={{ 
+            <IconButton
+              onClick={handleOpenUserMenu}
+              sx={{
                 p: 0,
                 '&:hover': {
                   transform: 'scale(1.1)',
@@ -67,8 +82,8 @@ function TopNav() {
                       : `http://localhost:5000/uploads/${user.profilePic}`
                     : ""
                 }
-                sx={{ 
-                  width: 40, 
+                sx={{
+                  width: 40,
                   height: 40,
                   border: '2px solid #fff',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
@@ -77,7 +92,7 @@ function TopNav() {
             </IconButton>
           </Tooltip>
           <Menu
-            sx={{ 
+            sx={{
               mt: "45px",
               '& .MuiPaper-root': {
                 borderRadius: 2,
@@ -101,8 +116,8 @@ function TopNav() {
         </>
       ) : (
         <Stack spacing={2} direction="row">
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             onClick={() => navigate("/login")}
             sx={{
               borderRadius: 2,
@@ -115,8 +130,8 @@ function TopNav() {
           >
             Login
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={() => navigate("/signup")}
             sx={{
               borderRadius: 2,

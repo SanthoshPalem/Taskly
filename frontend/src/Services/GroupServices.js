@@ -12,11 +12,27 @@ export const getGroups = async (token) => {
 
 // Get groups for current user
 export const getMyGroups = async (token) => {
-  const res = await axios.get(`${API_URL}/my-groups`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
+  try {
+    const res = await axios.get(`${API_URL}/my-groups`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    console.log("Response from /my-groups:", res.data); // ✅ LOG THIS
+
+    if (Array.isArray(res.data)) {
+      return res.data;
+    } else if (Array.isArray(res.data.groups)) {
+      return res.data.groups;
+    } else {
+      throw new Error("Response does not contain an array");
+    }
+  } catch (err) {
+    console.error("Failed to fetch my-groups:", err.response?.data || err.message);
+    return [];
+  }
 };
+
+
 
 // Get a group by ID
 export const getGroupById = async (groupId, token) => {
