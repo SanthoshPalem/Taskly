@@ -1,10 +1,9 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5000/api/groups';
+// src/Services/GroupServices.js
+import axios from '../utils/axios';
 
 // Get all groups
 export const getGroups = async (token) => {
-  const res = await axios.get(API_URL, {
+  const res = await axios.get('/api/groups/allgroups', {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -13,30 +12,31 @@ export const getGroups = async (token) => {
 // Get groups for current user
 export const getMyGroups = async (token) => {
   try {
-    const res = await axios.get(`${API_URL}/my-groups`, {
+    const response = await axios.get('/api/groups/my-groups', {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    console.log("Response from /my-groups:", res.data); // ✅ LOG THIS
+    const data = response.data;
 
-    if (Array.isArray(res.data)) {
-      return res.data;
-    } else if (Array.isArray(res.data.groups)) {
-      return res.data.groups;
+    // Backend returns { createdGroups: [], memberGroups: [] }
+    if (data.createdGroups && data.memberGroups) {
+      // Combine both arrays for display
+      return [...data.createdGroups, ...data.memberGroups];
+    } else if (Array.isArray(data)) {
+      return data;
     } else {
-      throw new Error("Response does not contain an array");
+      console.error('Failed to fetch my-groups: Unexpected response structure', data);
+      return [];
     }
-  } catch (err) {
-    console.error("Failed to fetch my-groups:", err.response?.data || err.message);
+  } catch (error) {
+    console.error('Error fetching my-groups:', error);
     return [];
   }
 };
 
-
-
 // Get a group by ID
 export const getGroupById = async (groupId, token) => {
-  const res = await axios.get(`${API_URL}/${groupId}`, {
+  const res = await axios.get(`/api/groups/${groupId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -44,7 +44,7 @@ export const getGroupById = async (groupId, token) => {
 
 // Create a group
 export const createGroup = async (groupData, token) => {
-  const res = await axios.post(API_URL, groupData, {
+  const res = await axios.post('/api/groups/create-groups', groupData, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -52,7 +52,7 @@ export const createGroup = async (groupData, token) => {
 
 // Update a group
 export const updateGroup = async (groupId, groupData, token) => {
-  const res = await axios.put(`${API_URL}/${groupId}`, groupData, {
+  const res = await axios.put(`/api/groups/${groupId}`, groupData, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -60,7 +60,7 @@ export const updateGroup = async (groupId, groupData, token) => {
 
 // Delete a group
 export const deleteGroup = async (groupId, token) => {
-  const res = await axios.delete(`${API_URL}/${groupId}`, {
+  const res = await axios.delete(`/api/groups/${groupId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -68,7 +68,7 @@ export const deleteGroup = async (groupId, token) => {
 
 // Add user to group
 export const addUserToGroup = async (groupId, userData, token) => {
-  const res = await axios.post(`${API_URL}/${groupId}/add-user`, userData, {
+  const res = await axios.post(`/api/groups/${groupId}/add-user`, userData, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -76,7 +76,7 @@ export const addUserToGroup = async (groupId, userData, token) => {
 
 // Remove user from group
 export const removeUserFromGroup = async (groupId, userId, token) => {
-  const res = await axios.delete(`${API_URL}/${groupId}/users/${userId}`, {
+  const res = await axios.delete(`/api/groups/${groupId}/users/${userId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
@@ -84,8 +84,20 @@ export const removeUserFromGroup = async (groupId, userId, token) => {
 
 // Update user in group
 export const updateUserInGroup = async (groupId, userId, userData, token) => {
-  const res = await axios.patch(`${API_URL}/${groupId}/users/${userId}`, userData, {
+  const res = await axios.patch(`/api/groups/${groupId}/users/${userId}`, userData, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
+};
+
+
+//retrive users from the group
+export const fetchGroupMembers = async (groupId) => {
+  try {
+    const response = await axios.get(`/api/groups/${groupId}/group-members`);
+    return response.data.members;
+  } catch (error) {
+    console.error('Error fetching group members:', error);
+    throw error;
+  }
 };

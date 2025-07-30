@@ -48,15 +48,15 @@ exports.getGroups = async (req, res) => {
 };
 
 // GET group by ID
-exports.getGroupById = async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.groupId).populate('members.userId', 'name email');
-    if (!group) return res.status(404).json({ message: 'Group not found' });
-    res.json(group);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+// exports.getGroupById = async (req, res) => {
+//   try {
+//     const group = await Group.findById(req.params.groupId).populate('members.userId', 'name email');
+//     if (!group) return res.status(404).json({ message: 'Group not found' });
+//     res.json(group);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // UPDATE group name
 exports.updateGroup = async (req, res) => {
@@ -205,3 +205,24 @@ exports.updateUserInGroup = async (req, res) => {
   }
 };
 
+//retriev user from the group
+ // Adjust the path if needed
+
+// GET /api/groups/:groupId/members
+exports.getGroupMembers = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const group = await Group.findById(groupId)
+      .populate('members.userId', 'name email');
+
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Only return the populated members array
+    res.status(200).json({ members: group.members });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

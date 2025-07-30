@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Groups from './pages/MyTasks';
+
 import MyGroups from './pages/MyGroups';
 import Dashboard from './pages/Dashboard';
 import Home from './components/Home'; // this should include <Sidenav />
