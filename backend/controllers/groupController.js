@@ -116,38 +116,49 @@ exports.addUserToGroup = async (req, res) => {
 
   try {
     const group = await Group.findById(groupId);
-    if (!group) return res.status(404).json({ message: "Group not found." });
+    if (!group) {
+      return res.status(404).json({ status: 404, message: "Group not found." });
+    }
 
     const requestingUserId = req.user._id.toString();
     const requestingMember = group.members.find(m => m.userId.toString() === requestingUserId);
 
     if (!requestingMember || requestingMember.role !== 'admin') {
-      return res.status(403).json({ message: "Only admins can perform this action." });
+      return res.status(403).json({ status: 403, message: "Only admins can perform this action." });
     }
 
     const userToAdd = await User.findOne({ email });
-    if (!userToAdd) return res.status(404).json({ message: "User not found." });
-    const userId = userToAdd._id;
+    if (!userToAdd) {
+      return res.status(404).json({ status: 404, message: "User not found." });
+    }
 
-    // Check if user is already in the group (improved check)
+    const userId = userToAdd._id;
     const existingMember = group.members.find(m => m.userId.toString() === userId.toString());
     if (existingMember) {
-      return res.status(400).json({ message: "User already in group." });
+      return res.status(400).json({ status: 400, message: "User already in group." });
     }
 
     group.members.push({ userId, role: role || 'member' });
     await group.save();
 
-    // Return populated group
     const populatedGroup = await Group.findById(groupId)
       .populate('createdBy', 'name email')
       .populate('members.userId', 'name email');
 
-    res.json(populatedGroup);
+    return res.status(200).json({
+      status: 200,
+      message: "User added successfully.",
+      group: populatedGroup
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      status: 500,
+      message: "Internal Server Error",
+      error: err.message
+    });
   }
 };
+
 
 
 // REMOVE user from group

@@ -129,6 +129,20 @@ const MyGroups = () => {
     setSelectedGroup(group);
   };
 
+  const fetchGroupMembersById = async (groupId) => {
+    try {
+      const members = await fetchGroupMembers(groupId); // this uses your frontend service function
+      setGroupMembers(members); // update the state that holds members
+    } catch (error) {
+      console.error('Error fetching group members:', error);
+      setSnack({
+        open: true,
+        message: 'Failed to refresh group members.',
+        severity: 'error',
+      });
+    }
+  };
+
   useEffect(() => {
     const getMembers = async () => {
       if (selectedGroup?._id) {
@@ -145,6 +159,8 @@ const MyGroups = () => {
   }, [selectedGroup]);
 
 
+
+
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* Left Panel - Group List */}
@@ -154,7 +170,8 @@ const MyGroups = () => {
           height: '90%',
           borderRight: '1px solid #ccc',
           p: 2,
-          bgcolor: '#f9f9f9',
+          bgcolor: '#727272ff',
+          color: 'white',
           overflowY: 'auto'
         }}
       >
@@ -209,7 +226,8 @@ const MyGroups = () => {
               p: 3,
               borderRadius: 3,
               boxShadow: 3,
-              bgcolor: '#fff',
+              bgcolor: '#727272ff',
+              color: '#ffffff',
               position: 'relative', // Important for positioning the menu icon
             }}
           >
@@ -280,17 +298,17 @@ const MyGroups = () => {
                 Group Members ({groupMembers.length})
               </Typography>
               {groupMembers.length > 0 ? (
-                <Box 
-                  sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
                     gap: 2,
                     mt: 2
                   }}
                 >
                   {groupMembers.map((member, index) => (
-                    <UserCard 
-                      key={member.userId?._id || index} 
+                    <UserCard
+                      key={member.userId?._id || index}
                       member={member}
                       onAddTask={(member) => console.log('Add task for:', member)}
                       onEdit={(member) => console.log('Edit member:', member)}
@@ -299,11 +317,11 @@ const MyGroups = () => {
                   ))}
                 </Box>
               ) : (
-                <Box 
-                  sx={{ 
-                    textAlign: 'center', 
-                    py: 4, 
-                    bgcolor: '#f5f5f5', 
+                <Box
+                  sx={{
+                    textAlign: 'center',
+                    py: 4,
+                    bgcolor: '#f5f5f5',
                     borderRadius: 2,
                     border: '2px dashed #ddd'
                   }}
@@ -398,8 +416,9 @@ const MyGroups = () => {
         open={openAddUserDialog}
         group={selectedGroupForAddUser}
         onClose={() => setOpenAddUserDialog(false)}
-        onUserAdded={fetchGroups}
+        onUserAdded={() => fetchGroupMembersById(selectedGroupForAddUser._id)}
       />
+
 
     </Box>
   );
