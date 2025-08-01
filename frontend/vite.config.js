@@ -3,9 +3,13 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // server: {
-  //   proxy: {
-  //     '/api': 'http://localhost:5000', // use your backend port here
-  //   }
-  // }
+  server: {
+    hmr: {
+      port: 5173,
+    },
+    host: true,
+    // proxy: {
+    //   '/api': 'http://localhost:5000', // use your backend port here
+    // }
+  }
 });

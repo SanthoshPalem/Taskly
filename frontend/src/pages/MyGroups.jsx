@@ -3,24 +3,28 @@ import {
   Box, Typography, InputBase, Paper, List, ListItem, ListItemButton, ListItemText,
   Divider, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   Snackbar, TextField, Tooltip, Fab, Card, CardContent, Menu,
-  MenuItem,
+  MenuItem, Avatar, Chip, Grid, useTheme, useMediaQuery,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import GroupIcon from '@mui/icons-material/Group';
+import PersonIcon from '@mui/icons-material/Person';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import GroupForm from '../components/GroupForm';
 import { getMyGroups, deleteGroup, updateGroup } from '../Services/GroupServices';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CloseIcon from '@mui/icons-material/Close';
 import { IconButton } from '@mui/material';
-import AddUserForm from '../components/AddUserForm'; // correct the path
+import AddUserForm from '../components/AddUserForm';
 import UserCard from '../components/UserCard';
 import { fetchGroupMembers } from '../Services/GroupServices';
 
-
-
 const MyGroups = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [groups, setGroups] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
-
   const [filteredGroups, setFilteredGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [openForm, setOpenForm] = useState(false);
@@ -33,10 +37,12 @@ const MyGroups = () => {
   const [editGroupData, setEditGroupData] = useState({ name: '' });
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = useState(null);
   const isMenuOpen = Boolean(menuAnchorEl);
+  const isMobileMenuOpen = Boolean(mobileMenuAnchorEl);
   const [openAddUserDialog, setOpenAddUserDialog] = useState(false);
   const [selectedGroupForAddUser, setSelectedGroupForAddUser] = useState(null);
-
+  const [openGroupDialog, setOpenGroupDialog] = useState(false);
 
   useEffect(() => {
     fetchGroups();
@@ -48,76 +54,17 @@ const MyGroups = () => {
       setGroups(res);
       setFilteredGroups(res);
     } else {
-      console.error('Response does not contain an array');
+      console.error('Expected array but got:', res);
     }
   };
 
   const handleSearch = (e) => {
-    const term = e.target.value;
+    const term = e.target.value.toLowerCase();
     setSearchTerm(term);
-    const filtered = groups.filter((group) =>
-      group.name.toLowerCase().includes(term.toLowerCase())
+    const filtered = groups.filter(group =>
+      group.name.toLowerCase().includes(term)
     );
     setFilteredGroups(filtered);
-  };
-
-  const handleDelete = async () => {
-    if (deleteTargetId) {
-      await deleteGroup(deleteTargetId);
-      fetchGroups();
-      setSnackbarMessage('Group deleted successfully');
-      setSnackbarOpen(true);
-      setOpenDeleteDialog(false);
-      setDeleteTargetId(null);
-    }
-  };
-
-  const handleEditClick = (group) => {
-    setEditGroupData({ _id: group._id, name: group.name });
-    setEditDialogOpen(true);
-  };
-
-  const handleEditSave = async () => {
-    const trimmedName = editGroupData.name.trim().toLowerCase();
-
-    const isDuplicate = groups.some(
-      (g) =>
-        g._id !== editGroupData._id &&
-        g.name.trim().toLowerCase() === trimmedName
-    );
-
-    if (isDuplicate) {
-      setSnackbarMessage('Group name already exists');
-      setSnackbarOpen(true);
-      return;
-    }
-
-    try {
-      await updateGroup(editGroupData._id, {
-        groupName: editGroupData.name,
-      });
-
-      const updated = groups.map((group) =>
-        group._id === editGroupData._id
-          ? { ...group, name: editGroupData.name }
-          : group
-      );
-
-      setGroups(updated);
-      setFilteredGroups(updated);
-
-      if (selectedGroup?._id === editGroupData._id) {
-        setSelectedGroup((prev) => ({ ...prev, name: editGroupData.name }));
-      }
-
-      setEditDialogOpen(false);
-      setSnackbarMessage('Group name updated successfully');
-      setSnackbarOpen(true);
-    } catch (err) {
-      console.error('Error updating group:', err);
-      setSnackbarMessage('Error updating group');
-      setSnackbarOpen(true);
-    }
   };
 
   const handleToggle = () => {
@@ -125,21 +72,57 @@ const MyGroups = () => {
     setOpenForm(true);
   };
 
+  const handleDelete = async () => {
+    if (deleteTargetId) {
+      try {
+        await deleteGroup(deleteTargetId);
+        setSnackbarMessage('Group deleted successfully!');
+        setSnackbarOpen(true);
+        fetchGroups();
+        setSelectedGroup(null);
+      } catch (error) {
+        setSnackbarMessage('Failed to delete group');
+        setSnackbarOpen(true);
+      }
+    }
+    setOpenDeleteDialog(false);
+    setDeleteTargetId(null);
+  };
+
+  const handleEditClick = (group) => {
+    setEditGroupData({ name: group.name });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (selectedGroup && editGroupData.name.trim()) {
+      try {
+        await updateGroup(selectedGroup._id, editGroupData);
+        setSnackbarMessage('Group updated successfully!');
+        setSnackbarOpen(true);
+        fetchGroups();
+        setSelectedGroup({ ...selectedGroup, name: editGroupData.name });
+      } catch (error) {
+        setSnackbarMessage('Failed to update group');
+        setSnackbarOpen(true);
+      }
+    }
+    setEditDialogOpen(false);
+  };
+
   const handleView = (group) => {
     setSelectedGroup(group);
+    if (isMobile) {
+      setOpenGroupDialog(true);
+    }
   };
 
   const fetchGroupMembersById = async (groupId) => {
     try {
-      const members = await fetchGroupMembers(groupId); // this uses your frontend service function
-      setGroupMembers(members); // update the state that holds members
+      const members = await fetchGroupMembers(groupId);
+      setGroupMembers(members);
     } catch (error) {
-      console.error('Error fetching group members:', error);
-      setSnack({
-        open: true,
-        message: 'Failed to refresh group members.',
-        severity: 'error',
-      });
+      console.error('Failed to fetch members', error);
     }
   };
 
@@ -154,25 +137,27 @@ const MyGroups = () => {
         }
       }
     };
-
     getMembers();
   }, [selectedGroup]);
 
-
-
-
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Left Panel - Group List */}
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'row',
+      height: '100vh', 
+      overflow: 'hidden' 
+    }}>
+      {/* Groups List Panel */}
       <Box
         sx={{
-          width: '30%',
-          height: '90%',
-          borderRight: '1px solid #ccc',
-          p: 2,
-          bgcolor: '#727272ff',
-          color: 'white',
-          overflowY: 'auto'
+          width: isMobile ? '100%' : '35%',
+          height: '100%',
+          borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+          p: isMobile ? 1.5 : 2,
+          bgcolor: '#ffffff',
+          color: '#000',
+          overflowY: 'auto',
+          boxShadow: isMobile ? 'none' : '2px 0 4px rgba(0,0,0,0.05)'
         }}
       >
         <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>
@@ -198,15 +183,42 @@ const MyGroups = () => {
           />
         </Paper>
 
-        {/* Group List */}
+        {/* Group List - Same for Mobile and Desktop */}
         <List>
           {filteredGroups.map((group) => (
             <React.Fragment key={group._id}>
               <ListItem disablePadding>
                 <ListItemButton onClick={() => handleView(group)}>
+                  <Avatar sx={{ bgcolor: '#1677ff', mr: 2 }}>
+                    <GroupIcon />
+                  </Avatar>
                   <ListItemText
-                    primary={group.name}
-                    secondary={`Tasks: ${group.tasks?.length ?? 0} | Members: ${group.members?.length ?? 0}`}
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                          {group.name}
+                        </Typography>
+                        {!isMobile && (
+                          <>
+                            <Chip
+                              label={`${group.tasks?.length ?? 0} Tasks`}
+                              size="small"
+                              sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontSize: '0.7rem' }}
+                            />
+                            <Chip
+                              label={`${group.members?.length ?? 0} Members`}
+                              size="small"
+                              sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontSize: '0.7rem' }}
+                            />
+                          </>
+                        )}
+                      </Box>
+                    }
+                    secondary={
+                      isMobile 
+                        ? `${group.tasks?.length ?? 0} Tasks • ${group.members?.length ?? 0} Members`
+                        : `Created by ${group.createdBy?.name || 'Unknown'} • ${new Date(group.createdAt).toLocaleDateString()}`
+                    }
                   />
                 </ListItemButton>
               </ListItem>
@@ -216,133 +228,296 @@ const MyGroups = () => {
         </List>
       </Box>
 
-      {/* Right Panel - Group Details */}
-      <Box sx={{ flex: 1, p: 1, overflowY: 'auto' }}>
-        {selectedGroup ? (
-          <Card
-            sx={{
-              width: '100%',
-              minHeight: '90%',
-              p: 3,
-              borderRadius: 3,
-              boxShadow: 3,
-              bgcolor: '#727272ff',
-              color: '#ffffff',
-              position: 'relative', // Important for positioning the menu icon
-            }}
-          >
-            {/* Menu Icon at Top-Right */}
+      {/* Right Panel - Group Details - Desktop Only */}
+      {!isMobile && (
+        <Box sx={{ 
+          flex: 1, 
+          p: 2, 
+          overflowY: 'auto',
+          height: '100%',
+          bgcolor: '#f8f9fa'
+        }}>
+          {selectedGroup ? (
+            <Card
+              sx={{
+                width: '100%',
+                minHeight: '95%',
+                borderRadius: 3,
+                boxShadow: 3,
+                bgcolor: '#ffffff',
+                color: '#000000',
+                position: 'relative',
+                border: '1px solid #e0e0e0'
+              }}
+            >
+              {/* Menu Icon at Top-Right */}
+              <IconButton
+                aria-label="more"
+                onClick={(e) => setMenuAnchorEl(e.currentTarget)}
+                sx={{ position: 'absolute', top: 16, right: 16 }}
+              >
+                <MoreVertIcon />
+              </IconButton>
+
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  {selectedGroup.name}
+                </Typography>
+                <Typography variant="body1">
+                  Tasks: {selectedGroup.tasks?.length ?? 0}
+                </Typography>
+                <Typography variant="body1">
+                  Members: {selectedGroup.members?.length ?? 0}
+                </Typography>
+
+                <Menu
+                  anchorEl={menuAnchorEl}
+                  open={isMenuOpen}
+                  onClose={() => setMenuAnchorEl(null)}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      setSelectedGroupForAddUser(selectedGroup);
+                      setOpenAddUserDialog(true);
+                      setMenuAnchorEl(null);
+                    }}
+                  >
+                    Add Person
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem
+                    onClick={() => {
+                      handleEditClick(selectedGroup);
+                      setMenuAnchorEl(null);
+                    }}
+                  >
+                    Edit Group Name
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem
+                    onClick={() => {
+                      setDeleteTargetId(selectedGroup._id);
+                      setOpenDeleteDialog(true);
+                      setMenuAnchorEl(null);
+                    }}
+                    sx={{ color: 'red' }}
+                  >
+                    Delete Group
+                  </MenuItem>
+                </Menu>
+              </CardContent>
+
+              {/* Render User Cards */}
+              <Box sx={{ mt: 3, p: 2 }}>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+                  Group Members ({groupMembers.length})
+                </Typography>
+                {groupMembers.length > 0 ? (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                      gap: 2,
+                      mt: 2
+                    }}
+                  >
+                    {groupMembers.map((member, index) => (
+                      <UserCard
+                        key={member.userId?._id || index}
+                        member={member}
+                        onAddTask={(member) => console.log('Add task for:', member)}
+                        onEdit={(member) => console.log('Edit member:', member)}
+                        onDelete={(member) => console.log('Delete member:', member)}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      textAlign: 'center',
+                      py: 4,
+                      bgcolor: '#f5f5f5',
+                      borderRadius: 2,
+                      border: '2px dashed #ddd'
+                    }}
+                  >
+                    <Typography variant="body1" color="text.secondary">
+                      No members in this group yet.
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Use the "Add Person" option from the menu to invite members.
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Card>
+          ) : (
+            <Typography variant="h6" color="text.secondary">
+              Select a group to view its details.
+            </Typography>
+          )}
+        </Box>
+      )}
+
+      {/* Group Details Dialog - Mobile Only */}
+      <Dialog
+        open={openGroupDialog}
+        onClose={() => setOpenGroupDialog(false)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 2,
+            maxHeight: isMobile ? '100%' : '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          bgcolor: '#1677ff',
+          color: 'white'
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            {selectedGroup?.name || 'Group Details'}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <IconButton
-              aria-label="more"
-              onClick={(e) => setMenuAnchorEl(e.currentTarget)}
-              sx={{ position: 'absolute', top: 16, right: 16 }}
+              onClick={(e) => setMobileMenuAnchorEl(e.currentTarget)}
+              sx={{ color: 'white', mr: 1 }}
             >
               <MoreVertIcon />
             </IconButton>
-
-
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
-                {selectedGroup.name}
-              </Typography>
-              <Typography variant="body1">
-                Tasks: {selectedGroup.tasks?.length ?? 0}
-              </Typography>
-              <Typography variant="body1">
-                Members: {selectedGroup.members?.length ?? 0}
-              </Typography>
-
-              <Menu
-                anchorEl={menuAnchorEl}
-                open={isMenuOpen}
-                onClose={() => setMenuAnchorEl(null)}
-              >
-                <MenuItem
-                  onClick={() => {
-                    setSelectedGroupForAddUser(selectedGroup); // if you're using a dialog for adding users
-                    setOpenAddUserDialog(true);
-                    setMenuAnchorEl(null);
-                  }}
-                >
-                  Add Person
-                </MenuItem>
-                <Divider />
-                <MenuItem
-                  onClick={() => {
-                    handleEditClick(selectedGroup);
-                    setMenuAnchorEl(null);
-                  }}
-                >
-                  Edit Group Name
-                </MenuItem>
-                <Divider />
-                <MenuItem
-                  onClick={() => {
-                    setDeleteTargetId(selectedGroup._id);
-                    setOpenDeleteDialog(true);
-                    setMenuAnchorEl(null);
-                  }}
-                  sx={{ color: 'red' }}
-                >
-                  Delete Group
-                </MenuItem>
-
-
-              </Menu>
-
-            </CardContent>
-
-            {/* 🧑‍💻 Render User Cards */}
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                Group Members ({groupMembers.length})
-              </Typography>
-              {groupMembers.length > 0 ? (
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                    gap: 2,
-                    mt: 2
-                  }}
-                >
-                  {groupMembers.map((member, index) => (
-                    <UserCard
-                      key={member.userId?._id || index}
-                      member={member}
-                      onAddTask={(member) => console.log('Add task for:', member)}
-                      onEdit={(member) => console.log('Edit member:', member)}
-                      onDelete={(member) => console.log('Delete member:', member)}
-                    />
-                  ))}
+            <IconButton
+              onClick={() => setOpenGroupDialog(false)}
+              sx={{ color: 'white' }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {selectedGroup && (
+            <Box sx={{ p: 2 }}>
+              {/* Group Info */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  Group Information
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                  <Chip
+                    icon={<AssignmentIcon />}
+                    label={`${selectedGroup.tasks?.length ?? 0} Tasks`}
+                    sx={{ bgcolor: '#e3f2fd', color: '#1976d2' }}
+                  />
+                  <Chip
+                    icon={<PersonIcon />}
+                    label={`${selectedGroup.members?.length ?? 0} Members`}
+                    sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2' }}
+                  />
                 </Box>
-              ) : (
-                <Box
-                  sx={{
-                    textAlign: 'center',
-                    py: 4,
-                    bgcolor: '#f5f5f5',
-                    borderRadius: 2,
-                    border: '2px dashed #ddd'
-                  }}
-                >
-                  <Typography variant="body1" color="text.secondary">
-                    No members in this group yet.
+                <Typography variant="body2" color="text.secondary">
+                  Created by {selectedGroup.createdBy?.name || 'Unknown'} on {new Date(selectedGroup.createdAt).toLocaleDateString()}
+                </Typography>
+              </Box>
+
+              {/* Group Members */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+                  Group Members ({groupMembers.length})
+                </Typography>
+                {groupMembers.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {groupMembers.map((member, index) => (
+                      <UserCard key={index} member={member} />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No members found in this group.
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Use the "Add Person" option from the menu to invite members.
-                  </Typography>
-                </Box>
-              )}
+                )}
+              </Box>
             </Box>
-
-          </Card>
-        ) : (
-          <Typography variant="h6" color="text.secondary">
-            Select a group to view its details.
-          </Typography>
-        )}
-      </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, bgcolor: '#f8f9fa' }}>
+          <Button 
+            onClick={() => {
+              setSelectedGroupForAddUser(selectedGroup);
+              setOpenAddUserDialog(true);
+            }}
+            startIcon={<PersonIcon />}
+            variant="outlined"
+          >
+            Add Member
+          </Button>
+          <Button 
+            onClick={() => {
+              handleEditClick(selectedGroup);
+              setOpenGroupDialog(false);
+            }}
+            startIcon={<AssignmentIcon />}
+            variant="outlined"
+          >
+            Edit Group
+          </Button>
+          <Button 
+            onClick={() => {
+              setDeleteTargetId(selectedGroup._id);
+              setOpenDeleteDialog(true);
+              setOpenGroupDialog(false);
+            }}
+            color="error"
+            variant="outlined"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+        
+        {/* Mobile Menu */}
+        <Menu
+          anchorEl={mobileMenuAnchorEl}
+          open={isMobileMenuOpen}
+          onClose={() => setMobileMenuAnchorEl(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setSelectedGroupForAddUser(selectedGroup);
+              setOpenAddUserDialog(true);
+              setMobileMenuAnchorEl(null);
+            }}
+          >
+            Add Person
+          </MenuItem>
+          <Divider />
+          <MenuItem
+            onClick={() => {
+              handleEditClick(selectedGroup);
+              setMobileMenuAnchorEl(null);
+              setOpenGroupDialog(false);
+            }}
+          >
+            Edit Group Name
+          </MenuItem>
+          <Divider />
+          <MenuItem
+            onClick={() => {
+              setDeleteTargetId(selectedGroup._id);
+              setOpenDeleteDialog(true);
+              setMobileMenuAnchorEl(null);
+              setOpenGroupDialog(false);
+            }}
+            sx={{ color: 'red' }}
+          >
+            Delete Group
+          </MenuItem>
+        </Menu>
+      </Dialog>
 
       {/* Floating Add Button */}
       <Tooltip title="Add Group">
@@ -412,14 +587,18 @@ const MyGroups = () => {
         message={snackbarMessage}
       />
 
+      {/* Add User Dialog */}
       <AddUserForm
         open={openAddUserDialog}
-        group={selectedGroupForAddUser}
         onClose={() => setOpenAddUserDialog(false)}
-        onUserAdded={() => fetchGroupMembersById(selectedGroupForAddUser._id)}
+        groupId={selectedGroupForAddUser?._id}
+        onUserAdded={() => {
+          fetchGroups();
+          if (selectedGroup) {
+            fetchGroupMembersById(selectedGroup._id);
+          }
+        }}
       />
-
-
     </Box>
   );
 };
