@@ -9,7 +9,7 @@ import {
   Avatar,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { registerUser } from '../services/AuthServices';
+import { registerUser } from '../Services/AuthServices';
 import { AuthContext } from '../context/AuthContext';
 
 const Signup = () => {

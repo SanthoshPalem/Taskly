@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/AuthServices';
+import { loginUser } from '../Services/AuthServices';
 
 const Login = () => {
   const { login } = useAuth(); // ✅ hook inside component
