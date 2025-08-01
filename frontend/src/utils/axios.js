@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: 'https://taskly-ecfs.onrender.com',
 });
+
 
 // Add a request interceptor to add the token to all requests
 instance.interceptors.request.use(

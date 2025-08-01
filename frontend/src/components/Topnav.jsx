@@ -79,7 +79,7 @@ function TopNav() {
                   user.profilePic
                     ? user.profilePic.startsWith("http")
                       ? user.profilePic
-                      : `http://localhost:5000/uploads/${user.profilePic}`
+                      : `https://taskly-ecfs.onrender.com/uploads/${user.profilePic}`
                     : ""
                 }
                 sx={{
