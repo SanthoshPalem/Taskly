@@ -19,23 +19,32 @@ const GroupForm = ({ open, handleClose }) => {
   const { user } = useContext(AuthContext);
 
   const handleSubmit = async () => {
-    if (!groupName.trim()) return;
-
-    // Check for user and token
-    if (!user || !user.token) {
-      console.error("No user or token found");
-      setSnackbar({ open: true, message: 'Authentication error. Please log in again.', severity: 'error' });
+    if (!groupName.trim()) {
+      setSnackbar({ open: true, message: 'Please enter a group name', severity: 'warning' });
       return;
     }
 
     try {
-      await createGroup({ name: groupName }, user.token);
+      await createGroup({ name: groupName });
       setGroupName('');
       setSnackbar({ open: true, message: 'Group created successfully!', severity: 'success' });
       handleClose();
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || 'Failed to create group. Please try again.';
+      console.error('Error creating group:', error);
+      let errorMessage = 'Failed to create group. Please try again.';
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        errorMessage = error.response.data?.message || errorMessage;
+        if (error.response.status === 401) {
+          errorMessage = 'Your session has expired. Please log in again.';
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response from server. Please check your connection.';
+      }
+      
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     }
   };

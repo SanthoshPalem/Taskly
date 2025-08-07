@@ -12,7 +12,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import GroupForm from '../components/GroupForm';
-import { getMyGroups, deleteGroup, updateGroup } from '../Services/GroupServices';
+import { getMyGroups, deleteGroup, updateGroup, removeUserFromGroup } from '../Services/GroupServices';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
 import { IconButton } from '@mui/material';
@@ -36,6 +36,8 @@ const MyGroups = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editGroupData, setEditGroupData] = useState({ name: '' });
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [userToRemove, setUserToRemove] = useState(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = useState(null);
   const isMenuOpen = Boolean(menuAnchorEl);
@@ -321,15 +323,32 @@ const MyGroups = () => {
                       mt: 2
                     }}
                   >
-                    {groupMembers.map((member, index) => (
-                      <UserCard
-                        key={member.userId?._id || index}
-                        member={member}
-                        onAddTask={(member) => console.log('Add task for:', member)}
-                        onEdit={(member) => console.log('Edit member:', member)}
-                        onDelete={(member) => console.log('Delete member:', member)}
-                      />
-                    ))}
+                    {groupMembers.map((member, index) => {
+                      // Add groupId to the member object
+                      const memberWithGroupId = {
+                        ...member,
+                        groupId: selectedGroup?._id // Add the current group's ID
+                      };
+                      
+                      return (
+                        <UserCard
+                          key={member.userId?._id || index}
+                          member={memberWithGroupId}
+                          isGroupCreator={selectedGroup?.createdBy?._id === member.userId?._id}
+                          onAddTask={(member) => console.log('Add task for:', member)}
+                          onEdit={(member) => console.log('Edit member:', member)}
+                          onDelete={(member) => {
+                            if (selectedGroup?.createdBy?._id === member.userId?._id) {
+                              setSnackbarMessage('Group creator cannot be removed');
+                              setSnackbarOpen(true);
+                              return;
+                            }
+                            setUserToRemove(member);
+                            setConfirmDialogOpen(true);
+                          }}
+                        />
+                      );
+                    })}
                   </Box>
                 ) : (
                   <Box
@@ -599,6 +618,88 @@ const MyGroups = () => {
           }
         }}
       />
+
+      {/* Confirmation Dialog for User Removal */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Remove User from Group
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to remove {userToRemove?.userId?.name || 'this user'} from the group? 
+            <strong> This action cannot be undone.</strong>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={async () => {
+              try {
+                console.log('Attempting to remove member:', {
+                  groupId: userToRemove?.groupId,
+                  userId: userToRemove?.userId?._id,
+                  userToRemove
+                });
+                
+                if (!userToRemove?.groupId || !userToRemove?.userId?._id) {
+                  throw new Error('Missing required user or group information');
+                }
+
+                // Make the API call
+                const response = await removeUserFromGroup(
+                  userToRemove.groupId, 
+                  userToRemove.userId._id
+                );
+                
+                console.log('Remove user response:', response);
+                
+                // Refresh the group members after successful removal
+                if (selectedGroup) {
+                  console.log('Refreshing group members...');
+                  await fetchGroupMembersById(selectedGroup._id);
+                }
+                
+                setSnackbarMessage('User removed from group successfully');
+                setSnackbarOpen(true);
+                
+              } catch (error) {
+                console.error('Error removing user:', {
+                  error,
+                  response: error.response,
+                  data: error.response?.data,
+                  status: error.response?.status,
+                  statusText: error.response?.statusText,
+                });
+                
+                let errorMessage = 'Failed to remove user from group';
+                
+                if (error.response?.data?.message) {
+                  errorMessage = error.response.data.message;
+                } else if (error.message) {
+                  errorMessage = error.message;
+                }
+                
+                setSnackbarMessage(errorMessage);
+                setSnackbarOpen(true);
+              } finally {
+                setConfirmDialogOpen(false);
+                setUserToRemove(null);
+              }
+            }} 
+            color="error"
+            autoFocus
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

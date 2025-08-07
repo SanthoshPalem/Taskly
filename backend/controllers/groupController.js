@@ -112,49 +112,104 @@ exports.getMyGroups = async (req, res) => {
 // ADD user to group
 exports.addUserToGroup = async (req, res) => {
   const { groupId } = req.params;
-  const { email, role } = req.body;
+  const { email, role = 'member' } = req.body;
+
+  console.log(`[addUserToGroup] Attempting to add user ${email} to group ${groupId} with role ${role}`);
+
+  // Input validation
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    console.error('[addUserToGroup] Invalid email format:', email);
+    return res.status(400).json({ 
+      status: 400, 
+      message: 'Please provide a valid email address.' 
+    });
+  }
+
+  if (!['member', 'admin'].includes(role)) {
+    console.error('[addUserToGroup] Invalid role:', role);
+    return res.status(400).json({ 
+      status: 400, 
+      message: 'Invalid role. Must be either "member" or "admin".' 
+    });
+  }
 
   try {
+    // Find the group and ensure it exists
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ status: 404, message: "Group not found." });
+      console.error(`[addUserToGroup] Group not found: ${groupId}`);
+      return res.status(404).json({ 
+        status: 404, 
+        message: 'Group not found.' 
+      });
     }
 
+    // Verify requesting user is an admin of the group
     const requestingUserId = req.user._id.toString();
-    const requestingMember = group.members.find(m => m.userId.toString() === requestingUserId);
+    const requestingMember = group.members.find(m => 
+      m.userId && m.userId.toString() === requestingUserId
+    );
 
     if (!requestingMember || requestingMember.role !== 'admin') {
-      return res.status(403).json({ status: 403, message: "Only admins can perform this action." });
+      console.error(`[addUserToGroup] Unauthorized access attempt by user ${requestingUserId}`);
+      return res.status(403).json({ 
+        status: 403, 
+        message: 'Only group admins can add members.' 
+      });
     }
 
-    const userToAdd = await User.findOne({ email });
+    // Find the user to add
+    const userToAdd = await User.findOne({ email: email.toLowerCase().trim() });
     if (!userToAdd) {
-      return res.status(404).json({ status: 404, message: "User not found." });
+      console.error(`[addUserToGroup] User not found with email: ${email}`);
+      return res.status(404).json({ 
+        status: 404, 
+        message: 'No user found with that email address.' 
+      });
     }
 
     const userId = userToAdd._id;
-    const existingMember = group.members.find(m => m.userId.toString() === userId.toString());
+    
+    // Check if user is already in the group
+    const existingMember = group.members.find(m => 
+      m.userId && m.userId.toString() === userId.toString()
+    );
+
     if (existingMember) {
-      return res.status(400).json({ status: 400, message: "User already in group." });
+      console.error(`[addUserToGroup] User ${userId} already in group ${groupId}`);
+      return res.status(409).json({ 
+        status: 409, 
+        message: 'This user is already a member of the group.' 
+      });
     }
 
-    group.members.push({ userId, role: role || 'member' });
-    await group.save();
+    // Add user to group
+    group.members.push({ 
+      userId, 
+      role: role.toLowerCase(),
+      addedAt: new Date()
+    });
 
+    await group.save();
+    console.log(`[addUserToGroup] Successfully added user ${userId} to group ${groupId}`);
+
+    // Get updated group with populated data
     const populatedGroup = await Group.findById(groupId)
       .populate('createdBy', 'name email')
-      .populate('members.userId', 'name email');
+      .populate('members.userId', 'name email profilePic');
 
     return res.status(200).json({
       status: 200,
-      message: "User added successfully.",
+      message: 'User added successfully!',
       group: populatedGroup
     });
+
   } catch (err) {
+    console.error('[addUserToGroup] Error:', err);
     return res.status(500).json({
       status: 500,
-      message: "Internal Server Error",
-      error: err.message
+      message: 'Failed to add user to group. Please try again.',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 };
@@ -164,24 +219,79 @@ exports.addUserToGroup = async (req, res) => {
 // REMOVE user from group
 exports.removeUserFromGroup = async (req, res) => {
   const { groupId, userId } = req.params;
+  
+  console.log(`[removeUserFromGroup] Attempting to remove user ${userId} from group ${groupId}`);
 
   try {
-    const group = await Group.findById(groupId);
-    if (!group) return res.status(404).json({ message: "Group not found." });
-
-    const requestingUserId = req.user._id.toString();
-    const requestingMember = group.members.find(m => m.userId.toString() === requestingUserId);
-
-    if (!requestingMember || requestingMember.role !== 'admin') {
-      return res.status(403).json({ message: "Only admins can perform this action." });
+    // Input validation
+    if (!groupId || !userId) {
+      console.error('[removeUserFromGroup] Missing required parameters');
+      return res.status(400).json({ 
+        status: 400, 
+        message: 'Missing required parameters: groupId and userId are required' 
+      });
     }
 
-    group.members = group.members.filter(member => member.userId.toString() !== userId);
-    await group.save();
+    // Find the group and ensure it exists
+    const group = await Group.findById(groupId)
+      .populate('members.userId', 'name email');
+      
+    if (!group) {
+      console.error(`[removeUserFromGroup] Group not found: ${groupId}`);
+      return res.status(404).json({ 
+        status: 404, 
+        message: 'Group not found.' 
+      });
+    }
 
-    res.json(group);
+    // Verify requesting user is an admin of the group
+    const requestingUserId = req.user._id.toString();
+    const requestingMember = group.members.find(m => 
+      m.userId && m.userId._id.toString() === requestingUserId
+    );
+
+    if (!requestingMember || requestingMember.role !== 'admin') {
+      console.error(`[removeUserFromGroup] Unauthorized access attempt by user ${requestingUserId}`);
+      return res.status(403).json({ 
+        status: 403, 
+        message: 'Only group admins can remove members.' 
+      });
+    }
+
+    // Check if the target user is actually in the group
+    const initialMemberCount = group.members.length;
+    group.members = group.members.filter(member => 
+      member.userId && member.userId._id.toString() !== userId
+    );
+
+    if (group.members.length === initialMemberCount) {
+      console.error(`[removeUserFromGroup] User ${userId} not found in group ${groupId}`);
+      return res.status(404).json({ 
+        status: 404, 
+        message: 'User not found in this group.' 
+      });
+    }
+
+    await group.save();
+    console.log(`[removeUserFromGroup] Successfully removed user ${userId} from group ${groupId}`);
+
+    // Get updated group with populated data
+    const updatedGroup = await Group.findById(groupId)
+      .populate('createdBy', 'name email')
+      .populate('members.userId', 'name email profilePic');
+
+    res.status(200).json({
+      status: 200,
+      message: 'User removed from group successfully',
+      group: updatedGroup
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[removeUserFromGroup] Error:', err);
+    res.status(500).json({ 
+      status: 500, 
+      message: 'Failed to remove user from group.',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 

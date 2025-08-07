@@ -9,17 +9,21 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  IconButton
+  IconButton,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import AddTaskForm from './AddTaskForm'; // create or import this
+import AddTaskForm from './AddTaskForm';
 import EditTaskForm from './EditTaskForm';
+import { removeUserFromGroup } from '../Services/GroupServices'; // ✅ import the function
 
 const UserCard = ({ member, onEdit, onDelete }) => {
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingTask, setEditingTask] = useState(null); // New
+  const [editingTask, setEditingTask] = useState(null);
+  const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
 
-  const { userId, role } = member || {};
+  const { userId, role, isGroupCreator } = member || {};
   const name = userId?.name || 'Unknown Name';
   const email = userId?.email || 'Unknown Email';
 
@@ -29,22 +33,45 @@ const UserCard = ({ member, onEdit, onDelete }) => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
+    setEditingTask(null);
   };
-
-
 
   const handleEditTask = () => {
     setEditingTask({
-      title: "Sample Task",              // Replace with real task data
-      description: "Description here",
-      priority: "High",
-      status: "In Progress",
-      difficulty: "Medium",
-      deadline: "2025-08-10",
+      title: 'Sample Task',
+      description: 'Description here',
+      priority: 'High',
+      status: 'In Progress',
+      difficulty: 'Medium',
+      deadline: '2025-08-10',
     });
     setOpenDialog(true);
   };
 
+  const handleDeleteUser = async () => {
+    try {
+      // Validate required data
+      if (!member?.groupId) {
+        throw new Error('Group information is missing');
+      }
+      
+      if (!member?.userId?._id) {
+        throw new Error('User information is missing');
+      }
+
+      // Call the parent's onDelete handler with the member data
+      // The parent component will handle the confirmation and API call
+      onDelete?.(member);
+    } catch (err) {
+      console.error('Error in handleDeleteUser:', err);
+      // The error will be handled by the parent component
+      throw err;
+    }
+  };
+
+  const handleCloseSnack = () => {
+    setSnack({ ...snack, open: false });
+  };
 
   return (
     <>
@@ -71,16 +98,22 @@ const UserCard = ({ member, onEdit, onDelete }) => {
           <Button size="small" variant="outlined" onClick={handleEditTask}>
             Edit
           </Button>
-
-          <Button size="small" variant="outlined" color="error" onClick={() => onDelete?.(member)}>
-            Delete
-          </Button>
+          {!isGroupCreator && (
+            <Button 
+              size="small" 
+              color="error"
+              onClick={handleDeleteUser}
+              title={isGroupCreator ? 'Group creator cannot be removed' : 'Remove user from group'}
+            >
+              Remove
+            </Button>
+          )}
         </CardActions>
       </Card>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
         <DialogTitle>
-          Add Task for {name}
+          {editingTask ? 'Edit Task' : `Add Task for ${name}`}
           <IconButton
             aria-label="close"
             onClick={handleCloseDialog}
@@ -102,7 +135,6 @@ const UserCard = ({ member, onEdit, onDelete }) => {
               onTaskUpdated={() => {
                 setEditingTask(null);
                 handleCloseDialog();
-                // Optionally refetch tasks
               }}
             />
           ) : (
@@ -114,14 +146,26 @@ const UserCard = ({ member, onEdit, onDelete }) => {
               users={[member.userId]}
               onTaskAdded={() => {
                 handleCloseDialog();
-                // Optionally refetch tasks
               }}
             />
           )}
-
-
         </DialogContent>
       </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnack}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSnack}
+          severity={snack.severity}
+          sx={{ width: '100%' }}
+        >
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

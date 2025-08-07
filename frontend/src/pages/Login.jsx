@@ -83,6 +83,16 @@ const Login = () => {
           >
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Login'}
           </Button>
+          {/* 🔗 Sign up link */}
+        <Typography variant="body2" align="center" mt={2}>
+          Don&apos;t have an account?{' '}
+          <span
+            style={{ color: '#1976d2', cursor: 'pointer' }}
+            onClick={() => navigate('/signup')}
+          >
+            Sign up
+          </span>
+        </Typography>
         </Box>
       </Paper>
     </Container>

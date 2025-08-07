@@ -131,6 +131,17 @@ const Signup = () => {
           >
             Sign Up
           </Button>
+
+          {/* 🔗 Login Link */}
+        <Typography variant="body2" align="center" mt={1}>
+          Already have an account?{' '}
+          <span
+            style={{ color: '#1976d2', cursor: 'pointer' }}
+            onClick={() => navigate('/login')}
+          >
+            Login
+          </span>
+        </Typography>
         </Box>
       </Paper>
     </Container>
