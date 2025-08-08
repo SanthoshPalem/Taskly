@@ -9,11 +9,10 @@ const difficulties = ['easy', 'medium', 'hard'];
 const statuses = ['not started', 'in progress', 'completed'];
 const priorities = ['low', 'medium', 'high'];
 
-const AddTaskForm = ({ open, onClose, groupId, createdBy, users = [], onTaskAdded }) => {
+const AddTaskForm = ({ open, onClose, groupId, createdBy, assignedTo, onTaskAdded }) => {
     const [form, setForm] = useState({
         title: '',
         description: '',
-        assignedTo: '',
         difficulty: 'easy',
         status: 'not started',
         dueDate: '',
@@ -29,14 +28,20 @@ const AddTaskForm = ({ open, onClose, groupId, createdBy, users = [], onTaskAdde
     };
 
     const handleSubmit = async () => {
-        if (!form.title || !form.assignedTo || !form.dueDate) {
+        if (!form.title || !form.dueDate) {
             setSnack({ open: true, message: 'Please fill all required fields.', severity: 'warning' });
             return;
         }
 
         const token = localStorage.getItem('token');
         try {
-            await createTask({ ...form, groupId, createdBy }, token);
+            await createTask({ 
+                ...form, 
+                groupId, 
+                createdBy, 
+                assignedTo, // Using the assignedTo prop instead of form field
+                status: 'not started' // Set default status
+            }, token);
             setSnack({ open: true, message: 'Task created successfully!', severity: 'success' });
             onTaskAdded(); // Refresh task list
             onClose();
@@ -70,23 +75,7 @@ const AddTaskForm = ({ open, onClose, groupId, createdBy, users = [], onTaskAdde
                         onChange={handleChange}
                         sx={{ mb: 2 }}
                     />
-                    <TextField
-                        name="assignedTo"
-                        label="Assign To"
-                        select
-                        fullWidth
-                        required
-                        value={form.assignedTo}
-                        onChange={handleChange}
-                        sx={{ mb: 2 }}
-                    >
-                        {(users || []).map((user) => (
-                            <MenuItem key={user._id} value={user._id}>
-                                {user.name} ({user.email})
-                            </MenuItem>
-                        ))}
 
-                    </TextField>
                     <TextField
                         name="difficulty"
                         label="Difficulty"

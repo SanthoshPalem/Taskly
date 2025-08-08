@@ -1,30 +1,32 @@
 // EditTaskForm.jsx
 import React, { useState, useEffect } from 'react';
-import { Button, TextField, MenuItem, Box } from '@mui/material';
+import { Button, TextField, MenuItem, Box, CircularProgress } from '@mui/material';
 
-const priorities = ['Low', 'Medium', 'High'];
-const statuses = ['Not Started', 'In Progress', 'Completed'];
-const difficulties = ['Easy', 'Medium', 'Hard'];
+const priorities = ['low', 'medium', 'high'];
+const statuses = ['not started', 'in progress', 'completed'];
+const difficulties = ['easy', 'medium', 'hard'];
 
 const EditTaskForm = ({ task, onClose, onTaskUpdated }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: '',
-    status: '',
-    difficulty: '',
-    deadline: '',
+    priority: 'medium',
+    status: 'not started',
+    difficulty: 'easy',
+    dueDate: '',
   });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (task) {
       setFormData({
         title: task.title || '',
         description: task.description || '',
-        priority: task.priority || 'Medium',
-        status: task.status || 'Not Started',
-        difficulty: task.difficulty || 'Easy',
-        deadline: task.deadline?.substring(0, 10) || '',
+        priority: task.priority || 'medium',
+        status: task.status || 'not started',
+        difficulty: task.difficulty || 'easy',
+        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
       });
     }
   }, [task]);
@@ -35,10 +37,33 @@ const EditTaskForm = ({ task, onClose, onTaskUpdated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Make API call to update the task
-    console.log('Updated Task:', formData);
-    onTaskUpdated?.(formData);
-    onClose();
+    if (isSubmitting) return;
+    
+    try {
+      setIsSubmitting(true);
+      console.log('Submitting task update:', formData);
+      
+      // Ensure all required fields are present
+      if (!formData.title) {
+        throw new Error('Title is required');
+      }
+      
+      // Convert date to ISO string if it exists
+      const taskData = {
+        ...formData,
+        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null
+      };
+      
+      // Call the parent's onTaskUpdated with the updated task data
+      await onTaskUpdated?.(taskData);
+      
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      // The error will be handled by the parent component
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -70,9 +95,12 @@ const EditTaskForm = ({ task, onClose, onTaskUpdated }) => {
         margin="normal"
         value={formData.priority}
         onChange={handleChange}
+        required
       >
         {priorities.map((p) => (
-          <MenuItem key={p} value={p}>{p}</MenuItem>
+          <MenuItem key={p} value={p}>
+            {p.charAt(0).toUpperCase() + p.slice(1)}
+          </MenuItem>
         ))}
       </TextField>
       <TextField
@@ -83,9 +111,12 @@ const EditTaskForm = ({ task, onClose, onTaskUpdated }) => {
         margin="normal"
         value={formData.status}
         onChange={handleChange}
+        required
       >
         {statuses.map((s) => (
-          <MenuItem key={s} value={s}>{s}</MenuItem>
+          <MenuItem key={s} value={s}>
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+          </MenuItem>
         ))}
       </TextField>
       <TextField
@@ -96,24 +127,48 @@ const EditTaskForm = ({ task, onClose, onTaskUpdated }) => {
         margin="normal"
         value={formData.difficulty}
         onChange={handleChange}
+        required
       >
         {difficulties.map((d) => (
-          <MenuItem key={d} value={d}>{d}</MenuItem>
+          <MenuItem key={d} value={d}>
+            {d.charAt(0).toUpperCase() + d.slice(1)}
+          </MenuItem>
         ))}
       </TextField>
       <TextField
-        name="deadline"
-        label="Deadline"
+        name="dueDate"
+        label="Due Date"
         type="date"
         fullWidth
         margin="normal"
         InputLabelProps={{ shrink: true }}
-        value={formData.deadline}
+        value={formData.dueDate}
         onChange={handleChange}
+        inputProps={{
+          min: new Date().toISOString().split('T')[0] // Prevent selecting past dates
+        }}
       />
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button onClick={onClose} sx={{ mr: 2 }}>Cancel</Button>
-        <Button type="submit" variant="contained" color="primary">Update</Button>
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Button 
+          onClick={onClose} 
+          disabled={isSubmitting}
+          sx={{ minWidth: 100 }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          variant="contained" 
+          color="primary"
+          disabled={isSubmitting}
+          sx={{ minWidth: 100 }}
+        >
+          {isSubmitting ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            'Update'
+          )}
+        </Button>
       </Box>
     </Box>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -9,41 +9,97 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   IconButton,
   Snackbar,
-  Alert
+  Alert,
+  Chip,
+  Divider
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import DescriptionIcon from '@mui/icons-material/Description';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AddTaskForm from './AddTaskForm';
 import EditTaskForm from './EditTaskForm';
-import { removeUserFromGroup } from '../Services/GroupServices'; // ✅ import the function
+import { removeUserFromGroup } from '../Services/GroupServices';
+import { getTasksByUser, updateTask, deleteTask } from '../Services/TasksServices';
 
-const UserCard = ({ member, onEdit, onDelete }) => {
+const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [viewingTask, setViewingTask] = useState(null);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
+  const [userTasks, setUserTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { userId, role, isGroupCreator } = member || {};
   const name = userId?.name || 'Unknown Name';
   const email = userId?.email || 'Unknown Email';
+  const userIdValue = userId?._id || '';
+
+  const fetchUserTasks = async () => {
+    if (!userIdValue || !member?.groupId) {
+      console.log('Missing userId or groupId:', { userIdValue, groupId: member?.groupId });
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      console.log('Fetching tasks for user:', { userId: userIdValue, groupId: member.groupId });
+      
+      // Add a small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const tasks = await getTasksByUser(member.groupId, userIdValue);
+      console.log('Fetched tasks:', tasks);
+      setUserTasks(Array.isArray(tasks) ? tasks : []);
+    } catch (error) {
+      console.error('Error fetching user tasks:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        userId: userIdValue,
+        groupId: member?.groupId
+      });
+      setSnack({
+        open: true,
+        message: `Failed to load tasks: ${error.message}`,
+        severity: 'error'
+      });
+      setUserTasks([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserTasks();
+  }, [userIdValue, groupId]);
 
   const handleAddTask = () => {
     setOpenDialog(true);
   };
 
+  const handleTaskAdded = () => {
+    fetchUserTasks();
+    onTaskAdded?.();
+  };
+
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingTask(null);
+    setViewingTask(null);
   };
 
-  const handleEditTask = () => {
+  const handleEditTask = (task) => {
     setEditingTask({
-      title: 'Sample Task',
-      description: 'Description here',
-      priority: 'High',
-      status: 'In Progress',
-      difficulty: 'Medium',
-      deadline: '2025-08-10',
+      _id: task._id,
+      title: task.title || '',
+      description: task.description || '',
+      priority: task.priority || 'medium',
+      status: task.status || 'not started',
+      difficulty: task.difficulty || 'easy',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
     });
     setOpenDialog(true);
   };
@@ -80,24 +136,170 @@ const UserCard = ({ member, onEdit, onDelete }) => {
           <Typography gutterBottom sx={{ color: 'text.secondary', fontSize: 14 }}>
             {role === 'admin' ? 'Admin' : 'Member'}
           </Typography>
-          <Typography variant="h6" sx={{ mb: 1 }}>{name}</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6">{name}</Typography>
+            {role === 'admin' && (
+              <Chip 
+                label="Admin" 
+                size="small" 
+                color="primary" 
+                variant="outlined"
+                sx={{ ml: 1 }} 
+              />
+            )}
+          </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {email}
           </Typography>
-          <Typography variant="body2">Assigned Tasks: 0</Typography>
-          <Typography variant="body2">Deadline: N/A</Typography>
-          <Typography variant="body2">Priority: Medium</Typography>
-          <Typography variant="body2">Status: Not Started</Typography>
-          <Typography variant="body2">Difficulty: Easy</Typography>
+          
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <Typography variant="body2" color="text.secondary">Loading tasks...</Typography>
+            </Box>
+          ) : userTasks && userTasks.length > 0 ? (
+            userTasks.map((task, index) => (
+              <Box
+                key={task._id || index}
+                sx={{
+                  p: 1,
+                  mb: 1,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    boxShadow: 1
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle2">{task.title}</Typography>
+                  <Box>
+                    <IconButton 
+                      size="small" 
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          if (!task._id) {
+                            throw new Error('Task ID is missing');
+                          }
+                          console.log('Deleting task with ID:', task._id);
+                          const response = await deleteTask(task._id);
+                          console.log('Delete task response:', response);
+                          
+                          setSnack({
+                            open: true,
+                            message: 'Task deleted successfully',
+                            severity: 'success'
+                          });
+                          
+                          // Refresh the task list
+                          await fetchUserTasks();
+                          
+                          // Notify parent component if needed
+                          if (onTaskAdded) {
+                            onTaskAdded();
+                          }
+                        } catch (error) {
+                          console.error('Error deleting task:', {
+                            error,
+                            response: error.response?.data,
+                            status: error.response?.status,
+                            statusText: error.response?.statusText
+                          });
+                          
+                          let errorMessage = 'Failed to delete task';
+                          if (error.response?.data?.message) {
+                            errorMessage = error.response.data.message;
+                          } else if (error.message) {
+                            errorMessage = error.message;
+                          }
+                          
+                          setSnack({
+                            open: true,
+                            message: errorMessage,
+                            severity: 'error'
+                          });
+                        }
+                      }}
+                      title="Delete Task"
+                      sx={{ ml: 1, color: 'error.main' }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingTask(task);
+                        setOpenDialog(true);
+                      }}
+                      title="View Description"
+                      sx={{ ml: 1 }}
+                    >
+                      <DescriptionIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5, alignItems: 'center' }}>
+                  <Chip 
+                    label={task.status || 'Not Started'} 
+                    size="small" 
+                    color={
+                      task.status === 'completed' ? 'success' : 
+                      task.status === 'in progress' ? 'primary' : 'default'
+                    }
+                    variant="outlined"
+                    sx={{ textTransform: 'capitalize' }}
+                  />
+                  <Chip 
+                    label={`Priority: ${task.priority || 'medium'}`} 
+                    size="small" 
+                    color={
+                      task.priority === 'high' ? 'error' : 
+                      task.priority === 'medium' ? 'warning' : 'default'
+                    }
+                    variant="outlined"
+                    sx={{ textTransform: 'capitalize' }}
+                  />
+                  {task.difficulty && (
+                    <Chip 
+                      label={`${task.difficulty}`} 
+                      size="small"
+                      variant="outlined"
+                      sx={{ textTransform: 'capitalize' }}
+                    />
+                  )}
+                  {task.dueDate && (
+                    <Chip 
+                      label={`Due: ${new Date(task.dueDate).toLocaleDateString()}`} 
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
+              </Box>
+            ))
+          ) : (
+            <Typography variant="body2" color="text.secondary">No tasks assigned</Typography>
+          )}
         </CardContent>
 
         <CardActions sx={{ display: 'flex', justifyContent: 'space-between', px: 2 }}>
           <Button size="small" variant="outlined" color="primary" onClick={handleAddTask}>
             Add Task
           </Button>
-          <Button size="small" variant="outlined" onClick={handleEditTask}>
-            Edit
-          </Button>
+          {userTasks.length > 0 && (
+            <Button 
+              size="small" 
+              variant="outlined" 
+              onClick={() => handleEditTask(userTasks[0])} // Edit the first task for now
+              sx={{ ml: 1 }}
+            >
+              Edit Task
+            </Button>
+          )}
           {!isGroupCreator && (
             <Button 
               size="small" 
@@ -111,9 +313,10 @@ const UserCard = ({ member, onEdit, onDelete }) => {
         </CardActions>
       </Card>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+      {/* Edit/Add Task Dialog */}
+      <Dialog open={openDialog && !!editingTask} onClose={handleCloseDialog} fullWidth maxWidth="sm">
         <DialogTitle>
-          {editingTask ? 'Edit Task' : `Add Task for ${name}`}
+          {'Edit Task'}
           <IconButton
             aria-label="close"
             onClick={handleCloseDialog}
@@ -128,26 +331,137 @@ const UserCard = ({ member, onEdit, onDelete }) => {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {editingTask ? (
-            <EditTaskForm
-              task={editingTask}
-              onClose={handleCloseDialog}
-              onTaskUpdated={() => {
+          <EditTaskForm
+            task={editingTask}
+            onClose={handleCloseDialog}
+            onTaskUpdated={async (updatedTask) => {
+              try {
+                // Update the task via API
+                await updateTask(editingTask._id, updatedTask);
+                
+                // Update local state
+                setUserTasks(prevTasks => 
+                  prevTasks.map(task => 
+                    task._id === editingTask._id 
+                      ? { ...task, ...updatedTask } 
+                      : task
+                  )
+                );
+                
+                setSnack({
+                  open: true,
+                  message: 'Task updated successfully!',
+                  severity: 'success'
+                });
+              } catch (error) {
+                console.error('Error updating task:', error);
+                setSnack({
+                  open: true,
+                  message: `Failed to update task: ${error.message}`,
+                  severity: 'error'
+                });
+              } finally {
                 setEditingTask(null);
                 handleCloseDialog();
-              }}
-            />
+              }
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Task Dialog */}
+      <AddTaskForm 
+        open={openDialog && !editingTask && !viewingTask} 
+        onClose={handleCloseDialog} 
+        groupId={member?.groupId}
+        createdBy={member?.createdBy}
+        assignedTo={member?.userId?._id}
+        onTaskAdded={handleTaskAdded}
+      />
+
+      {/* Task Description Dialog */}
+      <Dialog 
+        open={!!viewingTask} 
+        onClose={handleCloseDialog} 
+        fullWidth 
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {viewingTask?.title || 'Task Details'}
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseDialog}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500]
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {viewingTask?.description ? (
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>Description:</Typography>
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-line', mb: 2 }}>
+                {viewingTask.description}
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
+                <Chip 
+                  label={viewingTask.status || 'Not Started'} 
+                  size="small" 
+                  color={
+                    viewingTask.status === 'completed' ? 'success' : 
+                    viewingTask.status === 'in progress' ? 'primary' : 'default'
+                  }
+                  variant="outlined"
+                  sx={{ textTransform: 'capitalize' }}
+                />
+                <Chip 
+                  label={`Priority: ${viewingTask.priority || 'medium'}`} 
+                  size="small" 
+                  color={
+                    viewingTask.priority === 'high' ? 'error' : 
+                    viewingTask.priority === 'medium' ? 'warning' : 'default'
+                  }
+                  variant="outlined"
+                  sx={{ textTransform: 'capitalize' }}
+                />
+                {viewingTask.difficulty && (
+                  <Chip 
+                    label={`${viewingTask.difficulty}`} 
+                    size="small"
+                    variant="outlined"
+                    sx={{ textTransform: 'capitalize' }}
+                  />
+                )}
+                {viewingTask.dueDate && (
+                  <Chip 
+                    label={`Due: ${new Date(viewingTask.dueDate).toLocaleDateString()}`} 
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button 
+                  variant="outlined" 
+                  onClick={() => {
+                    setEditingTask(viewingTask);
+                    setViewingTask(null);
+                  }}
+                >
+                  Edit Task
+                </Button>
+              </Box>
+            </Box>
           ) : (
-            <AddTaskForm
-              open={openDialog}
-              onClose={handleCloseDialog}
-              groupId={member.groupId}
-              createdBy={member.userId?._id}
-              users={[member.userId]}
-              onTaskAdded={() => {
-                handleCloseDialog();
-              }}
-            />
+            <Typography variant="body1" color="text.secondary">
+              No description available for this task.
+            </Typography>
           )}
         </DialogContent>
       </Dialog>

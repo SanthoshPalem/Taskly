@@ -1,6 +1,7 @@
-
+const mongoose = require('mongoose');
 const Group = require('../models/Group');
-const User = require('../models/User'); // ✅ This line is important
+const User = require('../models/User');
+const Task = require('../models/Task');
 
 
 // CREATE group
@@ -74,12 +75,31 @@ exports.updateGroup = async (req, res) => {
 // DELETE group
 exports.deleteGroup = async (req, res) => {
   const { groupId } = req.params;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    await Group.findByIdAndDelete(groupId);
-    res.json({ message: "Group deleted" });
+    // First, delete all tasks associated with the group
+    await Task.deleteMany({ groupId }).session(session);
+    
+    // Then delete the group
+    await Group.findByIdAndDelete(groupId).session(session);
+    
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+    
+    res.json({ message: "Group and all associated tasks deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // If anything fails, abort the transaction
+    await session.abortTransaction();
+    session.endSession();
+    
+    console.error('Error deleting group and tasks:', err);
+    res.status(500).json({ 
+      error: err.message,
+      message: 'Failed to delete group and associated tasks' 
+    });
   }
 };
 

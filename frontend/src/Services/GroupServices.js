@@ -10,22 +10,51 @@ export const getGroups = async () => {
 // Get groups for current user
 export const getMyGroups = async () => {
   try {
+    console.log('Sending request to /api/groups/my-groups');
     const response = await axios.get('/api/groups/my-groups');
+    console.log('Raw API response:', response);
+    
     const data = response.data;
+    console.log('Response data:', data);
 
-    // Backend returns { createdGroups: [], memberGroups: [] }
-    if (data.createdGroups && data.memberGroups) {
-      // Combine both arrays for display
-      return [...data.createdGroups, ...data.memberGroups];
-    } else if (Array.isArray(data)) {
+    // If the response is an array, return it directly
+    if (Array.isArray(data)) {
+      console.log('Returning groups array directly');
       return data;
-    } else {
-      console.error('Failed to fetch my-groups: Unexpected response structure', data);
-      return [];
     }
-  } catch (error) {
-    console.error('Error fetching my-groups:', error);
+    
+    // If the response has the expected structure with createdGroups/memberGroups
+    if (data && (data.createdGroups || data.memberGroups)) {
+      const combined = [
+        ...(data.createdGroups || []),
+        ...(data.memberGroups || [])
+      ];
+      console.log('Combined groups from createdGroups and memberGroups:', combined);
+      return combined;
+    }
+    
+    // If we get here, the response structure is unexpected
+    console.error('Unexpected response structure from /api/groups/my-groups:', data);
     return [];
+    
+  } catch (error) {
+    console.error('Error in getMyGroups:', {
+      message: error.message,
+      response: error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      } : 'No response',
+      request: error.request ? 'Request was made but no response received' : 'No request was made',
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    });
+    
+    // Re-throw the error to be handled by the component
+    throw error;
   }
 };
 
@@ -55,8 +84,46 @@ export const deleteGroup = async (groupId) => {
 
 // Add user to group
 export const addUserToGroup = async (groupId, userData) => {
-  const res = await axios.post(`/api/groups/${groupId}/add-user`, userData);
-  return res.data;
+  try {
+    console.log(`[addUserToGroup] Adding user ${userData.email} to group ${groupId} with role ${userData.role}`);
+    const res = await axios.post(`/api/groups/${groupId}/add-user`, userData);
+    console.log('[addUserToGroup] Success:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('[addUserToGroup] Error:', error);
+    
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('[addUserToGroup] Response data:', error.response.data);
+      console.error('[addUserToGroup] Response status:', error.response.status);
+      
+      // Handle specific error status codes
+      let errorMessage = 'Failed to add user to group';
+      
+      if (error.response.status === 400) {
+        errorMessage = error.response.data.message || 'Invalid request. Please check the email and try again.';
+      } else if (error.response.status === 403) {
+        errorMessage = 'You do not have permission to add users to this group.';
+      } else if (error.response.status === 404) {
+        errorMessage = error.response.data.message || 'Group or user not found.';
+      } else if (error.response.status === 409) {
+        errorMessage = 'This user is already a member of the group.';
+      }
+      
+      const serverError = new Error(errorMessage);
+      serverError.response = error.response;
+      throw serverError;
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('[addUserToGroup] No response received:', error.request);
+      throw new Error('No response from server. Please check your connection and try again.');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('[addUserToGroup] Request setup error:', error.message);
+      throw new Error('Failed to process your request. Please try again.');
+    }
+  }
 };
 
 // Remove user from group
