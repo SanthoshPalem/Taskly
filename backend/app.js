@@ -15,29 +15,52 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://taskly-ecfs.onrender.com'
+  'https://taskly-ecfs.onrender.com',
+  'https://taskly-santhosh.netlify.app',
+  'https://taskly-santhosh.netlify.app/'
 ];
 
-app.use(cors({
+console.log('Configuring CORS with allowed origins:', allowedOrigins);
+
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('No origin header, allowing request');
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    // Check if the origin is in the allowed list
+    const originIsAllowed = allowedOrigins.some(allowedOrigin => 
+      origin === allowedOrigin || 
+      origin.startsWith('http://localhost:') ||
+      origin.includes('netlify.app')
+    );
+
+    console.log('Request from origin:', origin, 'Allowed:', originIsAllowed);
+    
+    if (!originIsAllowed) {
+      console.log('CORS error: Origin not allowed -', origin);
+      const msg = `The CORS policy for this site does not allow access from ${origin}`;
       return callback(new Error(msg), false);
     }
+    
     return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // Cache preflight response for 10 minutes
-}));
+  maxAge: 600, // Cache preflight response for 10 minutes
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
 
 // Handle preflight requests
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
