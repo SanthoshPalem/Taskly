@@ -10,10 +10,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
+  DialogActions,
   IconButton,
   Snackbar,
   Alert,
   Chip,
+  Collapse,
+  Paper,
   Divider
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -28,11 +31,13 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [viewingTask, setViewingTask] = useState(null);
+  const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
   const [userTasks, setUserTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showTasks, setShowTasks] = useState(false);
 
-  const { userId, role, isGroupCreator } = member || {};
+  const { userId, isGroupCreator } = member || {};
   const name = userId?.name || 'Unknown Name';
   const email = userId?.email || 'Unknown Email';
   const userIdValue = userId?._id || '';
@@ -80,15 +85,33 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
     setOpenDialog(true);
   };
 
-  const handleTaskAdded = () => {
-    fetchUserTasks();
-    onTaskAdded?.();
+  const handleTaskAdded = async () => {
+    // Add a small delay to ensure the backend has time to process the new task
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Force a complete refresh of the task list
+    await fetchUserTasks();
+    
+    // Also notify the parent component if needed
+    if (typeof onTaskAdded === 'function') {
+      onTaskAdded();
+    }
+    
+    console.log('Task added and list refreshed');
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingTask(null);
     setViewingTask(null);
+  };
+
+  const handleViewTask = (task, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setViewingTask(task);
   };
 
   const handleEditTask = (task) => {
@@ -131,40 +154,40 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
 
   return (
     <>
-      <Card sx={{ minWidth: 300, borderRadius: 3, boxShadow: 3 }}>
+      <Card sx={{ width: '100%', mb: 2, borderRadius: 2, boxShadow: 2 }}>
         <CardContent>
-          <Typography gutterBottom sx={{ color: 'text.secondary', fontSize: 14 }}>
-            {role === 'admin' ? 'Admin' : 'Member'}
-          </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Typography variant="h6">{name}</Typography>
-            {role === 'admin' && (
-              <Chip 
-                label="Admin" 
-                size="small" 
-                color="primary" 
-                variant="outlined"
-                sx={{ ml: 1 }} 
-              />
-            )}
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {email}
           </Typography>
           
-          {isLoading ? (
+          <Button 
+            variant="outlined" 
+            size="small" 
+            onClick={() => setShowTasks(!showTasks)}
+            startIcon={<DescriptionIcon />}
+            sx={{ mb: 2, textTransform: 'none' }}
+          >
+            {showTasks ? 'Hide Task' : `View Task (${userTasks.length})`}
+          </Button>
+          
+          <Collapse in={showTasks}>
+            <Box sx={{ borderTop: '1px solid #eee', pt: 2 }}>
+              {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
               <Typography variant="body2" color="text.secondary">Loading tasks...</Typography>
             </Box>
           ) : userTasks && userTasks.length > 0 ? (
             userTasks.map((task, index) => (
-              <Box
+              <Paper
                 key={task._id || index}
+                elevation={0}
                 sx={{
-                  p: 1,
-                  mb: 1,
-                  border: '1px solid',
-                  borderColor: 'divider',
+                  p: 1.5,
+                  mb: 1.5,
+                  border: '1px solid #e0e0e0',
                   borderRadius: 1,
                   '&:hover': {
                     backgroundColor: 'action.hover',
@@ -174,7 +197,31 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
                 }}
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="subtitle2">{task.title}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600, 
+                        mb: 0.5,
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewTask(task);
+                      }}
+                    >
+                      {task.title}
+                    </Typography>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => handleViewTask(task, e)}
+                      title="View Task Details"
+                      sx={{ ml: 1, color: 'text.secondary' }}
+                    >
+                      <DescriptionIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                   <Box>
                     <IconButton 
                       size="small" 
@@ -230,12 +277,8 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
                     </IconButton>
                     <IconButton 
                       size="small" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setViewingTask(task);
-                        setOpenDialog(true);
-                      }}
-                      title="View Description"
+                      onClick={(e) => handleViewTask(task, e)}
+                      title="View Task Details"
                       sx={{ ml: 1 }}
                     >
                       <DescriptionIcon fontSize="small" />
@@ -279,11 +322,15 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
                     />
                   )}
                 </Box>
-              </Box>
+              </Paper>
             ))
           ) : (
-            <Typography variant="body2" color="text.secondary">No tasks assigned</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 1 }}>
+              No tasks assigned
+            </Typography>
           )}
+            </Box>
+          </Collapse>
         </CardContent>
 
         <CardActions sx={{ display: 'flex', justifyContent: 'space-between', px: 2 }}>
@@ -305,7 +352,7 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
               size="small" 
               color="error"
               onClick={handleDeleteUser}
-              title={isGroupCreator ? 'Group creator cannot be removed' : 'Remove user from group'}
+              title="Remove user from group"
             >
               Remove
             </Button>
@@ -375,32 +422,40 @@ const UserCard = ({ member, groupId, onEdit, onDelete, onTaskAdded }) => {
         onClose={handleCloseDialog} 
         groupId={member?.groupId}
         createdBy={member?.createdBy}
-        assignedTo={member?.userId?._id}
+        assignedTo={[member?.userId?._id]} // Pass as array to support multiple assignments
         onTaskAdded={handleTaskAdded}
       />
 
       {/* Task Description Dialog */}
       <Dialog 
         open={!!viewingTask} 
-        onClose={handleCloseDialog} 
+        onClose={(e) => {
+          e?.stopPropagation();
+          setViewingTask(null);
+        }} 
         fullWidth 
         maxWidth="sm"
+        onClick={(e) => e.stopPropagation()}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ m: 0, p: 2 }}>
           {viewingTask?.title || 'Task Details'}
           <IconButton
             aria-label="close"
-            onClick={handleCloseDialog}
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewingTask(null);
+            }}
             sx={{
               position: 'absolute',
               right: 8,
               top: 8,
-              color: (theme) => theme.palette.grey[500]
+              color: (theme) => theme.palette.grey[500],
             }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
+        <Divider />
         <DialogContent>
           {viewingTask?.description ? (
             <Box>

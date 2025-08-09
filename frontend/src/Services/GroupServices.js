@@ -7,7 +7,7 @@ export const getGroups = async () => {
   return res.data;
 };
 
-// Get groups for current user
+// Get groups created by the current user
 export const getMyGroups = async () => {
   try {
     console.log('Sending request to /api/groups/my-groups');
@@ -17,20 +17,19 @@ export const getMyGroups = async () => {
     const data = response.data;
     console.log('Response data:', data);
 
-    // If the response is an array, return it directly
+    // If the response is an array, filter to only include groups created by the current user
     if (Array.isArray(data)) {
-      console.log('Returning groups array directly');
-      return data;
+      console.log('Filtering groups to only include those created by current user');
+      // Assuming the current user's ID is available in the group's createdBy field
+      return data.filter(group => group.createdBy?._id === JSON.parse(localStorage.getItem('user'))?._id);
     }
     
     // If the response has the expected structure with createdGroups/memberGroups
     if (data && (data.createdGroups || data.memberGroups)) {
-      const combined = [
-        ...(data.createdGroups || []),
-        ...(data.memberGroups || [])
-      ];
-      console.log('Combined groups from createdGroups and memberGroups:', combined);
-      return combined;
+      // Only return groups created by the current user
+      const createdGroups = data.createdGroups || [];
+      console.log('Returning only created groups:', createdGroups);
+      return createdGroups;
     }
     
     // If we get here, the response structure is unexpected

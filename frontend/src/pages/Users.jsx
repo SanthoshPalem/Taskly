@@ -14,14 +14,11 @@ import {
   TextField,
   InputAdornment,
   IconButton,
-  Tooltip,
-  Button,
-  Snackbar,
-  Alert
+  Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getMyGroups, updateUserInGroup } from '../Services/GroupServices';
+import { getMyGroups } from '../Services/GroupServices';
 import { getTasksByUser } from '../Services/TasksServices';
 
 const Users = () => {
@@ -29,7 +26,7 @@ const Users = () => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+
 
   const fetchUsersAndTasks = async () => {
     try {
@@ -103,40 +100,6 @@ const Users = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchUsersAndTasks();
-  };
-
-  const handleRoleChange = async (userId, groupId, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'member' : 'admin';
-    
-    try {
-      await updateUserInGroup(groupId, userId, { role: newRole });
-      
-      // Update the local state to reflect the role change
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === userId && user.groupId === groupId 
-            ? { ...user, role: newRole } 
-            : user
-        )
-      );
-      
-      setSnackbar({
-        open: true,
-        message: `User role updated to ${newRole}`,
-        severity: 'success'
-      });
-    } catch (error) {
-      console.error('Error updating user role:', error);
-      setSnackbar({
-        open: true,
-        message: error.response?.data?.message || 'Failed to update user role',
-        severity: 'error'
-      });
-    }
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   const filteredUsers = users.filter(user => 
@@ -220,7 +183,6 @@ const Users = () => {
                 <TableCell>Priority</TableCell>
                 <TableCell>Difficulty</TableCell>
                 <TableCell>Deadline</TableCell>
-                <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -278,23 +240,11 @@ const Users = () => {
                     </TableCell>
                     <TableCell>{user.task?.difficulty || '-'}</TableCell>
                     <TableCell>{user.task?.dueDate || '-'}</TableCell>
-                    <TableCell>
-                      {user.createdBy !== user.id && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color={user.role === 'admin' ? 'error' : 'primary'}
-                          onClick={() => handleRoleChange(user.id, user.groupId, user.role)}
-                        >
-                          Make {user.role === 'admin' ? 'Member' : 'Admin'}
-                        </Button>
-                      )}
-                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} align="center">
+                  <TableCell colSpan={8} align="center">
                     {searchTerm ? 'No matching users found' : 'No users available'}
                   </TableCell>
                 </TableRow>
@@ -304,21 +254,7 @@ const Users = () => {
         </TableContainer>
       </Paper>
       
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+
     </Box>
   );
 };

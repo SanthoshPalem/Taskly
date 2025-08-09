@@ -17,6 +17,7 @@ const AddTaskForm = ({ open, onClose, groupId, createdBy, assignedTo, onTaskAdde
         status: 'not started',
         dueDate: '',
         priority: 'medium',
+        assignedTo: Array.isArray(assignedTo) ? assignedTo : [assignedTo].filter(Boolean)
     });
 
     const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
@@ -35,13 +36,27 @@ const AddTaskForm = ({ open, onClose, groupId, createdBy, assignedTo, onTaskAdde
 
         const token = localStorage.getItem('token');
         try {
-            await createTask({ 
-                ...form, 
-                groupId, 
-                createdBy, 
-                assignedTo, // Using the assignedTo prop instead of form field
-                status: 'not started' // Set default status
-            }, token);
+            // Ensure assignedTo is an array and filter out any invalid values
+            const assignedUsers = Array.isArray(form.assignedTo) 
+                ? form.assignedTo.filter(id => id && typeof id === 'string' && id.trim() !== '')
+                : [form.assignedTo].filter(Boolean);
+
+            if (assignedUsers.length === 0) {
+                throw new Error('At least one user must be assigned to the task');
+            }
+
+            // Create a task for each assigned user
+            const createPromises = assignedUsers.map(userId => 
+                createTask({
+                    ...form,
+                    groupId,
+                    createdBy,
+                    assignedTo: userId, // Assign to single user
+                    status: 'not started' // Set default status
+                }, token)
+            );
+
+            await Promise.all(createPromises);
             setSnack({ open: true, message: 'Task created successfully!', severity: 'success' });
             onTaskAdded(); // Refresh task list
             onClose();

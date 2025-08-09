@@ -1,12 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getCurrentUser } = require('../controllers/authController');
+const { 
+  register, 
+  login, 
+  getCurrentUser, 
+  changePassword 
+} = require('../controllers/authController');
 const authMiddleware = require('../middleware/verifyToken');
 const upload = require('../middleware/upload');
 
-// Accept file in registration (like profilePic)
+// Public routes
 router.post('/register', upload.single('profilePic'), register);
 router.post('/login', login);
-router.get('/me', authMiddleware, getCurrentUser);
+
+// Protected routes (require authentication)
+router.use(authMiddleware);
+router.get('/me', getCurrentUser);
+router.patch('/change-password', changePassword);
 
 module.exports = router;

@@ -3,27 +3,22 @@ import {
   Box, Typography, InputBase, Paper, List, ListItem, ListItemButton, ListItemText,
   Divider, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   Snackbar, TextField, Tooltip, Fab, Card, CardContent, Menu,
-  MenuItem, Avatar, Chip, Grid, useTheme, useMediaQuery,
+  MenuItem, Avatar, Chip, Grid, IconButton
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import GroupIcon from '@mui/icons-material/Group';
 import PersonIcon from '@mui/icons-material/Person';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import GroupForm from '../components/GroupForm';
-import { getMyGroups, deleteGroup, updateGroup, removeUserFromGroup } from '../Services/GroupServices';
+import { getMyGroups, deleteGroup, updateGroup, removeUserFromGroup, fetchGroupMembers } from '../Services/GroupServices';
 import CloseIcon from '@mui/icons-material/Close';
-import { IconButton } from '@mui/material';
 import AddUserForm from '../components/AddUserForm';
 import UserCard from '../components/UserCard';
-import { fetchGroupMembers } from '../Services/GroupServices';
 
 const MyGroups = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [groups, setGroups] = useState([]);
   const [groupMembers, setGroupMembers] = useState([]);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
@@ -42,7 +37,6 @@ const MyGroups = () => {
   const [userToRemove, setUserToRemove] = useState(null);
   const [openAddUserDialog, setOpenAddUserDialog] = useState(false);
   const [selectedGroupForAddUser, setSelectedGroupForAddUser] = useState(null);
-  const [openGroupDialog, setOpenGroupDialog] = useState(false);
 
   useEffect(() => {
     fetchGroups();
@@ -97,10 +91,9 @@ const MyGroups = () => {
   const handleEditSave = async () => {
     if (selectedGroup && editGroupData.name.trim()) {
       try {
-        // Check if the new name already exists in the groups list (case-insensitive)
         const isDuplicate = groups.some(
-          group => 
-            group._id !== selectedGroup._id && // Don't compare with the current group
+          group =>
+            group._id !== selectedGroup._id &&
             group.name.toLowerCase() === editGroupData.name.trim().toLowerCase()
         );
 
@@ -125,9 +118,6 @@ const MyGroups = () => {
 
   const handleView = (group) => {
     setSelectedGroup(group);
-    if (isMobile) {
-      setOpenGroupDialog(true);
-    }
   };
 
   const fetchGroupMembersById = async (groupId) => {
@@ -154,23 +144,23 @@ const MyGroups = () => {
   }, [selectedGroup]);
 
   return (
-    <Box sx={{ 
-      display: 'flex', 
+    <Box sx={{
+      display: 'flex',
       flexDirection: 'row',
-      height: '100vh', 
-      overflow: 'hidden' 
+      height: '100vh',
+      overflow: 'hidden'
     }}>
       {/* Groups List Panel */}
       <Box
         sx={{
-          width: isMobile ? '100%' : '35%',
+          width: '35%',
           height: '100%',
-          borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
-          p: isMobile ? 1.5 : 2,
+          borderRight: '1px solid #e0e0e0',
+          p: 2,
           bgcolor: '#ffffff',
           color: '#000',
           overflowY: 'auto',
-          boxShadow: isMobile ? 'none' : '2px 0 4px rgba(0,0,0,0.05)'
+          boxShadow: '2px 0 4px rgba(0,0,0,0.05)'
         }}
       >
         <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>
@@ -196,7 +186,7 @@ const MyGroups = () => {
           />
         </Paper>
 
-        {/* Group List - Same for Mobile and Desktop */}
+        {/* Group List */}
         <List>
           {filteredGroups.map((group) => (
             <React.Fragment key={group._id}>
@@ -211,27 +201,21 @@ const MyGroups = () => {
                         <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                           {group.name}
                         </Typography>
-                        {!isMobile && (
-                          <>
-                            <Chip
-                              label={`${group.tasks?.length ?? 0} Tasks`}
-                              size="small"
-                              sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontSize: '0.7rem' }}
-                            />
-                            <Chip
-                              label={`${group.members?.length ?? 0} Members`}
-                              size="small"
-                              sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontSize: '0.7rem' }}
-                            />
-                          </>
-                        )}
+                        <>
+                          <Chip
+                            label={`${group.tasks?.length ?? 0} Tasks`}
+                            size="small"
+                            sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontSize: '0.7rem' }}
+                          />
+                          <Chip
+                            label={`${group.members?.length ?? 0} Members`}
+                            size="small"
+                            sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontSize: '0.7rem' }}
+                          />
+                        </>
                       </Box>
                     }
-                    secondary={
-                      isMobile 
-                        ? `${group.tasks?.length ?? 0} Tasks • ${group.members?.length ?? 0} Members`
-                        : `Created by ${group.createdBy?.name || 'Unknown'} • ${new Date(group.createdAt).toLocaleDateString()}`
-                    }
+                    secondary={`Created by ${group.createdBy?.name || 'Unknown'} • ${new Date(group.createdAt).toLocaleDateString()}`}
                   />
                 </ListItemButton>
               </ListItem>
@@ -241,173 +225,160 @@ const MyGroups = () => {
         </List>
       </Box>
 
-      {/* Right Panel - Group Details - Desktop Only */}
-      {!isMobile && (
-        <Box sx={{ 
-          flex: 1, 
-          p: 2, 
-          overflowY: 'auto',
-          height: '100%',
-          bgcolor: '#f8f9fa'
-        }}>
-          {selectedGroup ? (
-            <Card
-              sx={{
-                width: '100%',
-                minHeight: '95%',
-                borderRadius: 3,
-                boxShadow: 3,
-                bgcolor: '#ffffff',
-                color: '#000000',
-                position: 'relative',
-                border: '1px solid #e0e0e0'
-              }}
-            >
+      {/* Right Panel - Group Details */}
+      <Box sx={{
+        flex: 1,
+        p: 2,
+        overflowY: 'auto',
+        height: '100%',
+        bgcolor: '#f8f9fa'
+      }}>
+        {selectedGroup ? (
+          <Card
+            sx={{
+              width: '100%',
+              minHeight: '95%',
+              borderRadius: 3,
+              boxShadow: 3,
+              bgcolor: '#ffffff',
+              color: '#000000',
+              position: 'relative',
+              border: '1px solid #e0e0e0'
+            }}
+          >
+            <CardContent>
+              <Typography variant="h5" gutterBottom>
+                {selectedGroup.name}
+              </Typography>
+              <Typography variant="body1">
+                Tasks: {selectedGroup.tasks?.length ?? 0}
+              </Typography>
+              <Typography variant="body1">
+                Members: {selectedGroup.members?.length ?? 0}
+              </Typography>
 
-              <CardContent>
-                <Typography variant="h5" gutterBottom>
-                  {selectedGroup.name}
+              <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  startIcon={<PersonIcon />}
+                  onClick={() => {
+                    if (!selectedGroup?._id) {
+                      setSnackbarMessage('Error: No group selected');
+                      setSnackbarOpen(true);
+                      return;
+                    }
+                    setOpenAddUserDialog(true);
+                  }}
+                  disabled={!selectedGroup}
+                >
+                  Add Member
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => handleEditClick(selectedGroup)}
+                  disabled={!selectedGroup}
+                >
+                  Edit Group
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => {
+                    setDeleteTargetId(selectedGroup?._id);
+                    setOpenDeleteDialog(true);
+                  }}
+                  disabled={!selectedGroup}
+                >
+                  Delete Group
+                </Button>
+              </Box>
+            </CardContent>
+
+            {/* Members */}
+            <Box sx={{ mt: 3, p: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  Group Members ({groupMembers.length})
                 </Typography>
-                <Typography variant="body1">
-                  Tasks: {selectedGroup.tasks?.length ?? 0}
-                </Typography>
-                <Typography variant="body1">
-                  Members: {selectedGroup.members?.length ?? 0}
-                </Typography>
-
-
-                {!isMobile && (
-                  <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<PersonIcon />}
-                      onClick={() => {
-                        console.log('Selected Group:', selectedGroup);
-                        if (!selectedGroup?._id) {
-                          console.error('No group selected or group ID is missing');
-                          setSnackbarMessage('Error: No group selected');
-                          setSnackbarOpen(true);
-                          return;
-                        }
-                        setOpenAddUserDialog(true);
-                      }}
-                      disabled={!selectedGroup}
+                <Paper
+                  component="form"
+                  sx={{
+                    p: '2px 4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: 300,
+                    maxWidth: '100%',
+                    bgcolor: 'background.paper',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 2
+                  }}
+                >
+                  <InputBase
+                    sx={{ ml: 1, flex: 1, fontSize: '0.9rem' }}
+                    placeholder="Search members..."
+                    value={memberSearchTerm}
+                    onChange={(e) => setMemberSearchTerm(e.target.value)}
+                  />
+                  {memberSearchTerm && (
+                    <IconButton
+                      size="small"
+                      onClick={() => setMemberSearchTerm('')}
+                      sx={{ p: '5px', color: 'text.secondary' }}
                     >
-                      Add Member
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<EditIcon />}
-                      onClick={() => handleEditClick(selectedGroup)}
-                      disabled={!selectedGroup}
-                    >
-                      Edit Group
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => {
-                        setDeleteTargetId(selectedGroup?._id);
-                        setOpenDeleteDialog(true);
-                      }}
-                      disabled={!selectedGroup}
-                    >
-                      Delete Group
-                    </Button>
-                  </Box>
-                )}
-              </CardContent>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Paper>
+              </Box>
 
-              {/* Render User Cards */}
-              <Box sx={{ mt: 3, p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                    Group Members ({groupMembers.length})
-                  </Typography>
-                  <Paper
-                    component="form"
-                    sx={{
-                      p: '2px 4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      width: 300,
-                      maxWidth: '100%',
-                      bgcolor: 'background.paper',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 2
-                    }}
-                  >
-                    <InputBase
-                      sx={{ ml: 1, flex: 1, fontSize: '0.9rem' }}
-                      placeholder="Search members..."
-                      inputProps={{ 'aria-label': 'search members' }}
-                      value={memberSearchTerm}
-                      onChange={(e) => setMemberSearchTerm(e.target.value)}
-                      startAdornment={
-                        <SearchIcon sx={{ color: 'text.secondary', mr: 1, fontSize: '1.2rem' }} />
-                      }
-                    />
-                    {memberSearchTerm && (
-                      <IconButton
-                        size="small"
-                        onClick={() => setMemberSearchTerm('')}
-                        sx={{ p: '5px', color: 'text.secondary' }}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Paper>
-                </Box>
-                {groupMembers.length > 0 ? (
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                      gap: 2,
-                      mt: 2
-                    }}
-                  >
-                    {groupMembers
-                      .filter(member => {
-                        if (!memberSearchTerm) return true;
-                        const searchLower = memberSearchTerm.toLowerCase();
-                        const name = member.userId?.name?.toLowerCase() || '';
-                        const email = member.userId?.email?.toLowerCase() || '';
-                        const role = member.role?.toLowerCase() || '';
-                        return (
-                          name.includes(searchLower) ||
-                          email.includes(searchLower) ||
-                          role.includes(searchLower)
-                        );
-                      })
-                      .map((member, index) => {
-                      // Add groupId to the member object
+              {groupMembers.length > 0 ? (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    mt: 2,
+                    width: '100%'
+                  }}
+                >
+                  {groupMembers
+                    .filter(member => {
+                      if (!memberSearchTerm) return true;
+                      const searchLower = memberSearchTerm.toLowerCase();
+                      const name = member.userId?.name?.toLowerCase() || '';
+                      const email = member.userId?.email?.toLowerCase() || '';
+                      const role = member.role?.toLowerCase() || '';
+                      return (
+                        name.includes(searchLower) ||
+                        email.includes(searchLower) ||
+                        role.includes(searchLower)
+                      );
+                    })
+                    .map((member, index) => {
                       const memberWithGroupId = {
                         ...member,
-                        groupId: selectedGroup?._id // Add the current group's ID
+                        groupId: selectedGroup?._id
                       };
-                      
+
                       return (
                         <UserCard
                           key={member.userId?._id || index}
                           member={memberWithGroupId}
                           isGroupCreator={selectedGroup?.createdBy?._id === member.userId?._id}
-                          onAddTask={async (member) => {
-                            console.log('Add task for:', member);
-                            // Refresh group members after adding a task
+                          onAddTask={async () => {
                             if (selectedGroup?._id) {
                               await fetchGroupMembersById(selectedGroup._id);
                             }
                           }}
                           onTaskUpdated={async () => {
-                            // Refresh group members after a task is updated
                             if (selectedGroup?._id) {
                               await fetchGroupMembersById(selectedGroup._id);
                             }
                           }}
-                          onEdit={(member) => console.log('Edit member:', member)}
+                          onEdit={() => {}}
                           onDelete={(member) => {
                             if (selectedGroup?.createdBy?._id === member.userId?._id) {
                               setSnackbarMessage('Group creator cannot be removed');
@@ -420,149 +391,33 @@ const MyGroups = () => {
                         />
                       );
                     })}
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      textAlign: 'center',
-                      py: 4,
-                      bgcolor: '#f5f5f5',
-                      borderRadius: 2,
-                      border: '2px dashed #ddd'
-                    }}
-                  >
-                    <Typography variant="body1" color="text.secondary">
-                      No members in this group yet.
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Use the "Add Person" option from the menu to invite members.
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Card>
-          ) : (
-            <Typography variant="h6" color="text.secondary">
-              Select a group to view its details.
-            </Typography>
-          )}
-        </Box>
-      )}
-
-      {/* Group Details Dialog - Mobile Only */}
-      <Dialog
-        open={openGroupDialog}
-        onClose={() => setOpenGroupDialog(false)}
-        maxWidth="md"
-        fullWidth
-        fullScreen={isMobile}
-        PaperProps={{
-          sx: {
-            borderRadius: isMobile ? 0 : 2,
-            maxHeight: isMobile ? '100%' : '90vh'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          bgcolor: '#1677ff',
-          color: 'white'
-        }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            {selectedGroup?.name || 'Group Details'}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton
-              onClick={() => setOpenGroupDialog(false)}
-              sx={{ color: 'white' }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        
-        <DialogContent sx={{ p: 0 }}>
-          {selectedGroup && (
-            <Box sx={{ p: 2 }}>
-              {/* Group Info */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  Group Information
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                  <Chip
-                    icon={<AssignmentIcon />}
-                    label={`${selectedGroup.tasks?.length ?? 0} Tasks`}
-                    sx={{ bgcolor: '#e3f2fd', color: '#1976d2' }}
-                  />
-                  <Chip
-                    icon={<PersonIcon />}
-                    label={`${selectedGroup.members?.length ?? 0} Members`}
-                    sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2' }}
-                  />
                 </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Created by {selectedGroup.createdBy?.name || 'Unknown'} on {new Date(selectedGroup.createdAt).toLocaleDateString()}
-                </Typography>
-              </Box>
-
-              {/* Group Members */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                  Group Members ({groupMembers.length})
-                </Typography>
-                {groupMembers.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {groupMembers.map((member, index) => (
-                      <UserCard key={index} member={member} />
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No members found in this group.
+              ) : (
+                <Box
+                  sx={{
+                    textAlign: 'center',
+                    py: 4,
+                    bgcolor: '#f5f5f5',
+                    borderRadius: 2,
+                    border: '2px dashed #ddd'
+                  }}
+                >
+                  <Typography variant="body1" color="text.secondary">
+                    No members in this group yet.
                   </Typography>
-                )}
-              </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Use the "Add Person" option to invite members.
+                  </Typography>
+                </Box>
+              )}
             </Box>
-          )}
-        </DialogContent>
-        
-        <DialogActions sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-          <Button 
-            onClick={() => {
-              setSelectedGroupForAddUser(selectedGroup);
-              setOpenAddUserDialog(true);
-            }}
-            startIcon={<PersonIcon />}
-            variant="outlined"
-          >
-            Add Member
-          </Button>
-          <Button 
-            onClick={() => {
-              handleEditClick(selectedGroup);
-              setOpenGroupDialog(false);
-            }}
-            startIcon={<AssignmentIcon />}
-            variant="outlined"
-          >
-            Edit Group
-          </Button>
-          <Button 
-            onClick={() => {
-              setDeleteTargetId(selectedGroup._id);
-              setOpenDeleteDialog(true);
-              setOpenGroupDialog(false);
-            }}
-            color="error"
-            variant="outlined"
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </Card>
+        ) : (
+          <Typography variant="h6" color="text.secondary">
+            Select a group to view its details.
+          </Typography>
+        )}
+      </Box>
 
       {/* Floating Add Button */}
       <Tooltip title="Add Group">
@@ -649,15 +504,11 @@ const MyGroups = () => {
       <Dialog
         open={confirmDialogOpen}
         onClose={() => setConfirmDialogOpen(false)}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">
-          Remove User from Group
-        </DialogTitle>
+        <DialogTitle>Remove User from Group</DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            Are you sure you want to remove {userToRemove?.userId?.name || 'this user'} from the group? 
+          <DialogContentText>
+            Are you sure you want to remove {userToRemove?.userId?.name || 'this user'} from the group?
             <strong> This action cannot be undone.</strong>
           </DialogContentText>
         </DialogContent>
@@ -665,60 +516,39 @@ const MyGroups = () => {
           <Button onClick={() => setConfirmDialogOpen(false)} color="primary">
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={async () => {
               try {
-                console.log('Attempting to remove member:', {
-                  groupId: userToRemove?.groupId,
-                  userId: userToRemove?.userId?._id,
-                  userToRemove
-                });
-                
                 if (!userToRemove?.groupId || !userToRemove?.userId?._id) {
                   throw new Error('Missing required user or group information');
                 }
 
-                // Make the API call
-                const response = await removeUserFromGroup(
-                  userToRemove.groupId, 
+                await removeUserFromGroup(
+                  userToRemove.groupId,
                   userToRemove.userId._id
                 );
-                
-                console.log('Remove user response:', response);
-                
-                // Refresh the group members after successful removal
+
                 if (selectedGroup) {
-                  console.log('Refreshing group members...');
                   await fetchGroupMembersById(selectedGroup._id);
                 }
-                
+
                 setSnackbarMessage('User removed from group successfully');
                 setSnackbarOpen(true);
-                
+
               } catch (error) {
-                console.error('Error removing user:', {
-                  error,
-                  response: error.response,
-                  data: error.response?.data,
-                  status: error.response?.status,
-                  statusText: error.response?.statusText,
-                });
-                
                 let errorMessage = 'Failed to remove user from group';
-                
                 if (error.response?.data?.message) {
                   errorMessage = error.response.data.message;
                 } else if (error.message) {
                   errorMessage = error.message;
                 }
-                
                 setSnackbarMessage(errorMessage);
                 setSnackbarOpen(true);
               } finally {
                 setConfirmDialogOpen(false);
                 setUserToRemove(null);
               }
-            }} 
+            }}
             color="error"
             autoFocus
           >

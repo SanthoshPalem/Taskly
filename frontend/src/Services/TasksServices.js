@@ -32,6 +32,37 @@ export const getMyAssignedTasks = async () => {
   }
 };
 
+// Get all tasks for a specific group
+export const getAllGroupTasks = async (groupId) => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.token) {
+      throw new Error('No authentication token found');
+    }
+
+    const res = await axios.get(`/api/tasks/${groupId}`, {
+      headers: {
+        'Authorization': `Bearer ${user.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    return res.data || [];
+  } catch (error) {
+    console.error('Error in getAllGroupTasks:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    });
+    return [];
+  }
+};
+
 // Get tasks by group
 export const getGroupTasks = async (groupId) => {
   const res = await axios.get(`/api/tasks/${groupId}`);
@@ -62,9 +93,23 @@ export const createTask = async (taskData, token) => {
   } catch (error) {
     console.error('Error creating task:', {
       message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
+      response: {
+        data: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers,
+        request: {
+          method: error.config?.method,
+          url: error.config?.url,
+          data: error.config?.data
+        }
+      }
     });
+    
+    // If we have a response with data, use that as the error message
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    
     throw error;
   }
 };

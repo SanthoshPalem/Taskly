@@ -79,20 +79,8 @@ exports.createTask = async (req, res) => {
       });
     }
 
-    // Check if user already has a task in this group
-    const existingTask = await Task.findOne({
-      groupId: groupId,
-      assignedTo: assignedTo,
-      status: { $ne: 'completed' } // Only check for non-completed tasks
-    });
-
-    if (existingTask) {
-      console.error(`User ${assignedTo} already has an active task in group ${groupId}`);
-      return res.status(400).json({
-        message: "User already has an active task in this group",
-        existingTaskId: existingTask._id
-      });
-    }
+    // Note: Removed the check for existing active tasks to allow multiple tasks per user
+    console.log(`Allowing multiple tasks for user ${assignedTo} in group ${groupId}`);
 
     const taskData = {
       groupId,

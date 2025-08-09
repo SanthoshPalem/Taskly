@@ -7,7 +7,20 @@ import {
   Box,
   Paper,
   Avatar,
+  Alert,
+  Collapse,
+  IconButton,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import InputAdornment from '@mui/material/InputAdornment';
 import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../Services/AuthServices';
 import { AuthContext } from '../context/AuthContext';
@@ -18,8 +31,40 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [profilePic, setProfilePic] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [error, setError] = useState('');
+  const [showError, setShowError] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // Password requirements
+  const [requirements, setRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    specialChar: false,
+  });
+
+  // Check password against requirements
+  const validatePassword = (password) => {
+    const newRequirements = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      specialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]+/.test(password),
+    };
+    setRequirements(newRequirements);
+    return Object.values(newRequirements).every(Boolean);
+  };
+
+  const handlePasswordChange = (e) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    validatePassword(newPassword);
+  };
 
   // Preview cleanup when component unmounts or image changes
   useEffect(() => {
@@ -38,7 +83,15 @@ const Signup = () => {
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
-      alert('Please fill in all the fields.');
+      setError('Please fill in all the fields.');
+      setShowError(true);
+      return;
+    }
+
+    // Validate password before submission
+    if (!validatePassword(password)) {
+      setError('Please ensure your password meets all requirements.');
+      setShowError(true);
       return;
     }
 
@@ -58,7 +111,9 @@ const Signup = () => {
       navigate('/'); // Redirect after successful signup
     } catch (error) {
       console.error('Signup Error:', error.response?.data || error.message);
-      alert(error.response?.data?.message || 'Signup failed.');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Signup failed. Please try again.';
+      setError(errorMessage);
+      setShowError(true);
     }
   };
 
@@ -85,7 +140,7 @@ const Signup = () => {
                 '&:hover': { backgroundColor: '#f0f0f0' },
               }}
             >
-              Upload Profile Picture
+              {preview ? 'Change Profile Picture' : 'Upload Profile Picture'}
               <input
                 type="file"
                 accept="image/*"
@@ -112,14 +167,66 @@ const Signup = () => {
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          <TextField
-            label="Password"
-            type="password"
-            variant="outlined"
-            fullWidth
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <Box width="100%">
+            <TextField
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              variant="outlined"
+              value={password}
+              onChange={handlePasswordChange}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              fullWidth
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Collapse in={passwordFocused || password.length > 0}>
+              <Box mt={1}>
+                <Typography variant="caption" color="textSecondary">
+                  Password must contain:
+                </Typography>
+                <List dense disablePadding>
+                  {[/* eslint-disable */
+                    { key: 'length', text: 'At least 8 characters' },
+                    { key: 'uppercase', text: 'At least one uppercase letter' },
+                    { key: 'lowercase', text: 'At least one lowercase letter' },
+                    { key: 'number', text: 'At least one number' },
+                    { key: 'specialChar', text: 'At least one special character' },
+                  ].map((req) => (
+                    <ListItem key={req.key} dense disableGutters>
+                      <ListItemIcon sx={{ minWidth: 30 }}>
+                        {requirements[req.key] ? (
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        ) : (
+                          <ErrorIcon color="error" fontSize="small" />
+                        )}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={req.text}
+                        primaryTypographyProps={{
+                          variant: 'caption',
+                          color: requirements[req.key] ? 'textSecondary' : 'error',
+                        }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            </Collapse>
+          </Box>
 
           <Button
             variant="contained"
