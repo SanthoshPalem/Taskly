@@ -11,56 +11,34 @@ const Group = require('./models/Group');
 dotenv.config();
 const app = express();
 
-// Configure CORS with specific origins and credentials support
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'https://taskly-ecfs.onrender.com',
-  'https://taskly-santhosh.netlify.app',
-  'https://taskly-santhosh.netlify.app/'
-];
+// Enable CORS for all routes and all origins
+console.log('Configuring CORS to allow all origins');
 
-console.log('Configuring CORS with allowed origins:', allowedOrigins);
+// Apply CORS middleware with permissive settings for development
+app.use((req, res, next) => {
+  // Allow all origins
+  res.header('Access-Control-Allow-Origin', '*');
+  
+  // Allow specific headers
+  res.header('Access-Control-Allow-Headers', 
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Allow specific methods
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+    return res.status(200).json({});
+  }
+  
+  next();
+});
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) {
-      console.log('No origin header, allowing request');
-      return callback(null, true);
-    }
-    
-    // Check if the origin is in the allowed list
-    const originIsAllowed = allowedOrigins.some(allowedOrigin => 
-      origin === allowedOrigin || 
-      origin.startsWith('http://localhost:') ||
-      origin.includes('netlify.app')
-    );
-
-    console.log('Request from origin:', origin, 'Allowed:', originIsAllowed);
-    
-    if (!originIsAllowed) {
-      console.log('CORS error: Origin not allowed -', origin);
-      const msg = `The CORS policy for this site does not allow access from ${origin}`;
-      return callback(new Error(msg), false);
-    }
-    
-    return callback(null, true);
-  },
-  credentials: true,
+// Also apply the cors middleware for additional safety
+app.use(cors({
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600, // Cache preflight response for 10 minutes
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 app.use(express.json());
 
